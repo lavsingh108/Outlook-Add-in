@@ -1,0 +1,351 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #f9f9f9;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #0D47A1;
+  color: white;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  font-size: 22px;
+  color: #90CAF9;
+}
+
+.header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: white;
+}
+
+.header-sub {
+  font-size: 11px;
+  color: #90CAF9;
+}
+
+/* ── Main ────────────────────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Upload Screen ───────────────────────────────────── */
+#uploadScreen {
+  padding: 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.attachment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.attachment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.attachment-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #222;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-size {
+  font-size: 11px;
+  color: #888;
+}
+
+.bundle-row {
+  margin-bottom: 12px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+
+.primary-section {
+  margin-bottom: 14px;
+}
+
+.section-label {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 12px;
+  background: #0D47A1;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-primary:hover { background: #1565C0; }
+.btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Loading Screen ──────────────────────────────────── */
+#loadingScreen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-container {
+  text-align: center;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #1A73E8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-size: 13px;
+  color: #555;
+}
+
+/* ── Chat Screen ─────────────────────────────────────── */
+#chatScreen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Scrollable chat window */
+.chat-window {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scroll-behavior: smooth;
+}
+
+/* ── Message Bubbles ─────────────────────────────────── */
+.msg-user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.msg-user .bubble {
+  background: #1A73E8;
+  color: white;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  max-width: 80%;
+  font-size: 13px;
+  line-height: 1.5;
+  word-wrap: break-word;
+}
+
+.msg-ai {
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.ai-avatar {
+  width: 28px;
+  height: 28px;
+  background: #0D47A1;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.msg-ai .bubble {
+  background: white;
+  color: #222;
+  padding: 10px 14px;
+  border-radius: 16px 16px 16px 4px;
+  max-width: 80%;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid #e8e8e8;
+  word-wrap: break-word;
+}
+
+.msg-ai .bubble b  { color: #0D47A1; }
+.msg-ai .bubble li { margin-left: 16px; }
+
+.msg-label {
+  font-size: 10px;
+  color: #999;
+  margin-bottom: 3px;
+}
+
+/* ── Suggestions Bar ─────────────────────────────────── */
+.suggestions-bar {
+  padding: 8px 12px;
+  background: #F0F4FF;
+  border-top: 1px solid #dce6ff;
+  flex-shrink: 0;
+}
+
+.suggestions-label {
+  font-size: 11px;
+  color: #555;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.suggestion-btn {
+  background: white;
+  border: 1px solid #1A73E8;
+  color: #1A73E8;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+}
+
+.suggestion-btn:hover {
+  background: #1A73E8;
+  color: white;
+}
+
+/* ── Input Bar (sticky) ──────────────────────────────── */
+.input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  background: white;
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+.input-field {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 13px;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.input-field:focus { border-color: #1A73E8; }
+
+.btn-send {
+  width: 38px;
+  height: 38px;
+  background: #1A73E8;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.btn-send:hover    { background: #1558b0; }
+.btn-send:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Utilities ───────────────────────────────────────── */
+.hidden { display: none !important; }
