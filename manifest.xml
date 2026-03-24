@@ -4,7 +4,7 @@
            xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" 
            xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" 
            xsi:type="MailApp">
-  <Id>5ca8467b-23f1-4e42-9a6d-88f5a133880a</Id> <!-- Change this GUID if you want -->
+  <Id>dcab9323-52af-496a-bebb-04dbea9adb6c</Id> <!-- Change this GUID if you want -->
   <Version>1.0.0.0</Version>
   <ProviderName>SmartBlue</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
