@@ -1,39 +1,35 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
-           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appshost/1.1" 
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" 
+           xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" 
            xsi:type="MailApp">
-
-  <Id>b180a7cd-c932-47a6-b986-3e6c1d25ad8e</Id>
-  <Version>1.0.0</Version>
+  <Id>5ca8467b-23f1-4e42-9a6d-88f5a133880a</Id> <!-- Change this GUID if you want -->
+  <Version>1.0.0.0</Version>
   <ProviderName>SmartBlue</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="BlueAI"/>
-  <Description DefaultValue="AI-powered document analysis for your emails"/>
-  <IconUrl DefaultValue="https://drive.google.com/uc?export=view&id=1yJHr2KTerdWdd7T9IabCYBCJzlzaFbLS"/>
-
+  <DisplayName DefaultValue="Blue AI" />
+  <Description DefaultValue="AI-powered document analysis" />
+  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-80.png" />
   <Hosts>
-    <Host Name="Mailbox"/>
+    <Host Name="Mail" />
   </Hosts>
-
   <Requirements>
     <Sets>
-      <Set Name="Mailbox" MinVersion="1.1"/>
+      <Set Name="Mailbox" MinVersion="1.5" />
     </Sets>
   </Requirements>
-
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://YOUR-HOST/index.html"/>
-        <RequestedHeight>500</RequestedHeight>
+        <SourceLocation DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
+        <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
   </FormSettings>
-
-  <Permissions>ReadItem</Permissions>
-
-  <Rule xsi:type="RuleCollection" Mode="Or">
-    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  <Permissions>ReadWriteItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="And">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
   </Rule>
-
 </OfficeApp>
