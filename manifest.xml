@@ -7,7 +7,7 @@
   xsi:type="MailApp">
 
   <Id>7fae96f5-9626-4762-bfee-f42353b53783</Id>
-  <Version>1.0.0.2</Version> <!-- Version incremented -->
+  <Version>1.0.0.3</Version> <!-- Version incremented -->
   <ProviderName>SmartBlue</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Blue AI"/>
@@ -96,7 +96,6 @@
         <bt:Image id="Icon.80x80" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <!-- Corrected Folder Paths -->
         <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/src/taskpane/taskpane.html"/>
         <bt:Url id="Commands.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/src/commands/commands.html"/>
       </bt:Urls>
