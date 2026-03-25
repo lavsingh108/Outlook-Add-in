@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Blue AI</title>
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="taskpane.css">
+</head>
+<body>
+    <div id="app-body">
+        <div class="header">
+            <img src="../../assets/logo.png" class="logo" width="32" height="32" alt="Blue AI"/>
+            <div class="header-text">
+                <span class="title">Analyse Document</span><br>
+                <span class="subtitle">SmartBlue AI</span>
+            </div>
+        </div>
+
+        <!-- View 1: Attachment Selection -->
+        <div id="view-attachments" class="view">
+            <div class="section-title">Attachments</div>
+            <div id="attachment-list">Loading attachments...</div>
+            <div class="footer">
+                <button id="btn-upload-bundle" class="btn-primary">⬆ Upload &amp; Analyse</button>
+            </div>
+        </div>
+
+        <!-- View 2: Chat UI -->
+        <div id="view-chat" class="view hidden">
+            <div id="chat-container">
+                <div id="chat-history"></div>
+                <div id="suggested-questions"></div>
+            </div>
+            <div class="chat-input-area">
+                <textarea id="user-input" placeholder="Type your question..."></textarea>
+                <button id="btn-send" class="btn-primary">➤ Send</button>
+            </div>
+        </div>
+
+        <!-- Status / Errors -->
+        <div id="status-msg"></div>
+    </div>
+    <script src="taskpane.js"></script>
+</body>
+</html>
