@@ -12,8 +12,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Blue AI"/>
   <Description DefaultValue="AI Document Analysis for Outlook"/>
-  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-128.png"/>
+  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
   <SupportUrl DefaultValue="https://ws.demo.smartblue.ai"/>
   <AppDomains>
     <AppDomain>https://lavsingh108.github.io</AppDomain>
@@ -52,7 +52,8 @@
     <Hosts>
       <Host xsi:type="MailHost">
         <DesktopFormFactor>
-          <FunctionFile resid="Commands.Url"/>
+          <!-- FunctionFile points to taskpane.html since no separate commands.html exists -->
+          <FunctionFile resid="Taskpane.Url"/>
           <ExtensionPoint xsi:type="MessageReadCommandSurface">
             <OfficeTab id="TabDefault">
               <Group id="msgReadGroup">
@@ -80,12 +81,11 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/commands.html"/>
         <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
