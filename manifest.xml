@@ -1,27 +1,71 @@
-<!-- 1. Update Requirement Set to 1.8 -->
-<VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
-  <Requirements>
-    <bt:Sets DefaultMinVersion="1.8">
-      <bt:Set Name="Mailbox"/>
-    </bt:Sets>
-  </Requirements>
-  
-  <Hosts>
-    <Host xsi:type="MailHost">
-      <DesktopFormFactor>
-        <!-- 2. Point FunctionFile to command.html, NOT taskpane.html -->
-        <FunctionFile resid="Commands.Url"/>
-        <!-- ... rest of your code ... -->
-      </DesktopFormFactor>
-    </Host>
-  </Hosts>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+  xsi:type="MailApp">
 
-  <Resources>
-    <bt:Urls>
-      <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
-      <!-- 3. Add the Commands.Url resource -->
-      <bt:Url id="Commands.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/command.html"/>
-    </bt:Urls>
-    <!-- ... rest of your resources ... -->
-  </Resources>
-</VersionOverrides>
+  <Id>7fae96f5-9626-4762-bfee-f42353b53783</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>SmartBlue</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Blue AI"/>
+  <Description DefaultValue="AI Document Analysis for Outlook"/>
+  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+  <SupportUrl DefaultValue="https://ws.demo.smartblue.ai"/>
+  <AppDomains>
+    <AppDomain>https://lavsingh108.github.io</AppDomain>
+    <AppDomain>https://ws.demo.smartblue.ai</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1"/>
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
+        <RequestedHeight>450</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadWriteItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  </Rule>
+  <DisableEntityHighlighting>false</DisableEntityHighlighting>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Requirements>
+      <bt:Sets DefaultMinVersion="1.8">
+        <bt:Set Name="Mailbox"/>
+      </bt:Sets>
+    </Requirements>
+    
+    <Hosts>
+      <Host xsi:type="MailHost">
+        <DesktopFormFactor>
+          <!-- 2. Point FunctionFile to command.html, NOT taskpane.html -->
+          <FunctionFile resid="Commands.Url"/>
+          <!-- ... rest of your code ... -->
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
+        <!-- 3. Add the Commands.Url resource -->
+        <bt:Url id="Commands.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/command.html"/>
+      </bt:Urls>
+      <!-- ... rest of your resources ... -->
+    </Resources>
+  </VersionOverrides>
+
+</OfficeApp>
