@@ -16,8 +16,9 @@
   <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
   <SupportUrl DefaultValue="https://ws.demo.smartblue.ai"/>
   <AppDomains>
-    <AppDomain>https://lavsingh108.github.io</AppDomain>
-    <AppDomain>https://ws.demo.smartblue.ai</AppDomain>
+      <AppDomain>https://alcdn.msauth.net</AppDomain>
+      <AppDomain>https://login.microsoftonline.com</AppDomain>
+      <AppDomain>https://lavsingh108.github.io</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Mailbox"/>

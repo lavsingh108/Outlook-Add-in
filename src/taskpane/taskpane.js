@@ -55,6 +55,9 @@ const MSAL_SCOPES = ["openid", "profile", "email"];
 let _msalInstance = null;
 
 function getMsalInstance() {
+    if (typeof msal === 'undefined') {
+        throw new Error("MSAL library failed to load. Check your internet connection or manifest AppDomains.");
+    }
     if (!_msalInstance) {
         _msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
     }
