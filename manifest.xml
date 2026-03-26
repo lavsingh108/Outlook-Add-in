@@ -12,8 +12,8 @@
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Blue AI"/>
   <Description DefaultValue="AI Document Analysis for Outlook"/>
-  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
-  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
+  <IconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+  <HighResolutionIconUrl DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
   <SupportUrl DefaultValue="https://ws.demo.smartblue.ai"/>
   <AppDomains>
     <AppDomain>https://lavsingh108.github.io</AppDomain>
@@ -30,7 +30,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/src/taskpane/taskpane.html"/>
+        <SourceLocation DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
         <RequestedHeight>450</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -81,12 +81,12 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/assets/logo.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/logo.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/src/taskpane/taskpane.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://lavsingh108.github.io/Outlook-Add-in/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="SmartBlue"/>

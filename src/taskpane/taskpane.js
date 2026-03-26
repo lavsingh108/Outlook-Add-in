@@ -1,4 +1,4 @@
-/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, console */
+/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, console, msal */
 
 // ── API Endpoints ─────────────────────────────────────────────────
 const UPLOAD_URL     = "https://ws.demo.smartblue.ai/v1/document/upload";
@@ -34,19 +34,62 @@ function init() {
     });
 }
 
-// ── Auth: Microsoft Entra (Office SSO) ───────────────────────────
+// ── Auth: Microsoft Entra via MSAL.js ────────────────────────────
+// ⚠️  Replace YOUR_CLIENT_ID and YOUR_TENANT_ID with your Azure app registration values
+const MSAL_CONFIG = {
+    auth: {
+        clientId:   "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7",
+        authority:  "https://login.microsoftonline.com/f895e126-dbc8-41bb-b00b-5cd2172346f9",
+        redirectUri: window.location.origin + "/taskpane.html"
+    },
+    cache: {
+        cacheLocation: "sessionStorage",
+        storeAuthStateInCookie: false
+    }
+};
+
+const MSAL_SCOPES = ["openid", "profile", "email"];
+// If your SmartBlue API requires a specific scope, add it here e.g.:
+// const MSAL_SCOPES = ["api://YOUR_CLIENT_ID/access_as_user"];
+
+let _msalInstance = null;
+
+function getMsalInstance() {
+    if (!_msalInstance) {
+        _msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+    }
+    return _msalInstance;
+}
+
 async function getAuthToken() {
+    const msalInstance = getMsalInstance();
+
+    // 1. Try silent token acquisition first (uses cached token)
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+        try {
+            const silentResult = await msalInstance.acquireTokenSilent({
+                scopes: MSAL_SCOPES,
+                account: accounts[0]
+            });
+            console.log("MSAL silent token acquired");
+            return silentResult.accessToken;
+        } catch (silentErr) {
+            console.warn("Silent token failed, falling back to popup:", silentErr);
+        }
+    }
+
+    // 2. Fall back to popup login if silent fails or no account cached
     try {
-        // Gets the Microsoft Entra access token via Office SSO
-        const token = await Office.auth.getAccessToken({
-            allowSignInPrompt: true,
-            allowConsentPrompt: true,
-            forMSGraphAccess: false
+        const popupResult = await msalInstance.loginPopup({
+            scopes: MSAL_SCOPES,
+            prompt: "select_account"
         });
-        return token;
-    } catch (err) {
-        console.error("Entra auth error:", err);
-        throw new Error("Authentication failed: " + (err.message || err.code));
+        console.log("MSAL popup login successful:", popupResult.account.username);
+        return popupResult.accessToken;
+    } catch (popupErr) {
+        console.error("MSAL popup failed:", popupErr);
+        throw new Error("Authentication failed: " + (popupErr.message || popupErr.errorCode));
     }
 }
 
