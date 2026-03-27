@@ -1,4 +1,9 @@
-/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, console, msal */
+/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, console */
+
+/**
+ * SmartBlue Outlook Add-in Logic
+ * Migrated from Google Apps Script to Office.js
+ */
 
 // ── API Endpoints ─────────────────────────────────────────────────
 const UPLOAD_URL     = "https://ws.demo.smartblue.ai/v1/document/upload";
@@ -9,7 +14,6 @@ const ASK_URL        = "https://ws.demo.smartblue.ai/v1/conversation/ask/questio
 // ── State ─────────────────────────────────────────────────────────
 let currentConversationId = null;
 let currentDocumentId     = null;
-let chatHistory           = [];  // { role: "user"|"ai", text: string }[]
 let isBundleMode          = true;
 let primaryIndex          = 0;
 
@@ -23,9 +27,13 @@ Office.onReady((info) => {
 function init() {
     loadAttachments();
 
+    // Event Listeners
     document.getElementById("chk-bundle").addEventListener("change", onBundleToggle);
     document.getElementById("btn-upload").addEventListener("click", handleUpload);
     document.getElementById("btn-send").addEventListener("click", sendChatMessage);
+    document.getElementById("btn-retry").addEventListener("click", resetToAttachments);
+    
+    // Enter key to send
     document.getElementById("user-input").addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -34,65 +42,31 @@ function init() {
     });
 }
 
-// ── Auth: Microsoft Entra via MSAL.js ────────────────────────────
-// ⚠️  Replace YOUR_CLIENT_ID and YOUR_TENANT_ID with your Azure app registration values
-const MSAL_CONFIG = {
-    auth: {
-        clientId:   "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7",
-        authority:  "https://login.microsoftonline.com/f895e126-dbc8-41bb-b00b-5cd2172346f9",
-        redirectUri: window.location.origin + "/taskpane.html"
-    },
-    cache: {
-        cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false
-    }
-};
-
-const MSAL_SCOPES = ["openid", "profile", "email"];
-// If your SmartBlue API requires a specific scope, add it here e.g.:
-// const MSAL_SCOPES = ["api://YOUR_CLIENT_ID/access_as_user"];
-
-let _msalInstance = null;
-
-function getMsalInstance() {
-    if (typeof msal === 'undefined') {
-        throw new Error("MSAL library failed to load. Check your internet connection or manifest AppDomains.");
-    }
-    if (!_msalInstance) {
-        _msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
-    }
-    return _msalInstance;
-}
-
+// ── Auth: Microsoft Office SSO (Native) ──────────────────────────
 async function getAuthToken() {
-    const msalInstance = getMsalInstance();
-
-    // 1. Try silent token acquisition first (uses cached token)
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-        try {
-            const silentResult = await msalInstance.acquireTokenSilent({
-                scopes: MSAL_SCOPES,
-                account: accounts[0]
-            });
-            console.log("MSAL silent token acquired");
-            return silentResult.accessToken;
-        } catch (silentErr) {
-            console.warn("Silent token failed, falling back to popup:", silentErr);
-        }
-    }
-
-    // 2. Fall back to popup login if silent fails or no account cached
     try {
-        const popupResult = await msalInstance.loginPopup({
-            scopes: MSAL_SCOPES,
-            prompt: "select_account"
+        /**
+         * Uses the built-in Office Identity API.
+         * Requires <WebApplicationInfo> in manifest.xml
+         */
+        const token = await Office.auth.getAccessToken({
+            allowSignInPrompt: true,
+            allowConsentPrompt: true,
+            forMSGraphAccess: false
         });
-        console.log("MSAL popup login successful:", popupResult.account.username);
-        return popupResult.accessToken;
-    } catch (popupErr) {
-        console.error("MSAL popup failed:", popupErr);
-        throw new Error("Authentication failed: " + (popupErr.message || popupErr.errorCode));
+        console.log("Office SSO Token acquired");
+        return token;
+    } catch (err) {
+        console.error("SSO Error:", err);
+        // Error 13007: User needs to grant consent
+        if (err.code === 13007) {
+            throw new Error("Please grant permission to the add-in in the popup and try again.");
+        }
+        // Error 13000: Manifest configuration issue
+        if (err.code === 13000) {
+            throw new Error("Identity API not supported. Check manifest WebApplicationInfo.");
+        }
+        throw new Error("Authentication failed: " + err.message);
     }
 }
 
@@ -101,17 +75,14 @@ function loadAttachments() {
     const item = Office.context.mailbox.item;
     const attachments = item.attachments;
     const listDiv = document.getElementById("attachment-list");
-    const primaryListDiv = document.getElementById("primary-list");
 
     if (!attachments || attachments.length === 0) {
-        listDiv.innerHTML = "<div class='empty-state'>No attachments found in this email.</div>";
+        listDiv.innerHTML = "<div class='empty-state'>No attachments found.</div>";
         document.getElementById("btn-upload").disabled = true;
         document.getElementById("bundle-toggle-row").style.display = "none";
-        document.getElementById("primary-label").style.display = "none";
         return;
     }
 
-    // Attachment info list
     listDiv.innerHTML = "";
     attachments.forEach((att) => {
         const div = document.createElement("div");
@@ -125,21 +96,22 @@ function loadAttachments() {
         listDiv.appendChild(div);
     });
 
-    // Primary radio list
     renderPrimaryList(attachments);
 }
 
 function renderPrimaryList(attachments) {
     const primaryListDiv = document.getElementById("primary-list");
+    const primaryLabel = document.getElementById("primary-label");
+    
     primaryListDiv.innerHTML = "";
 
     if (!isBundleMode || attachments.length <= 1) {
-        document.getElementById("primary-label").style.display = "none";
+        primaryLabel.style.display = "none";
         primaryListDiv.style.display = "none";
         return;
     }
 
-    document.getElementById("primary-label").style.display = "block";
+    primaryLabel.style.display = "block";
     primaryListDiv.style.display = "block";
 
     attachments.forEach((att, i) => {
@@ -157,37 +129,25 @@ function renderPrimaryList(attachments) {
 
 function onBundleToggle() {
     isBundleMode = document.getElementById("chk-bundle").checked;
-    const item = Office.context.mailbox.item;
-    renderPrimaryList(item.attachments);
+    renderPrimaryList(Office.context.mailbox.item.attachments);
 }
 
-// ── Upload Handler ────────────────────────────────────────────────
+// ── Upload & Analyse Pipeline ─────────────────────────────────────
 async function handleUpload() {
     const item = Office.context.mailbox.item;
     const attachments = item.attachments;
 
-    if (!attachments || attachments.length === 0) {
-        showError("No attachments found.");
-        return;
-    }
-
     showView("loading");
-    setLoadingText("Authenticating…");
-
-    let token;
-    try {
-        token = await getAuthToken();
-    } catch (err) {
-        showError(err.message);
-        return;
-    }
+    setLoadingText("Authenticating...");
 
     try {
-        // Step 1: Upload primary document
+        const token = await getAuthToken();
+
+        // 1. Upload Primary Document
         const pIdx = isBundleMode ? primaryIndex : 0;
         const primaryAtt = attachments[pIdx];
 
-        setLoadingText(`Uploading ${primaryAtt.name}…`);
+        setLoadingText(`Uploading ${primaryAtt.name}...`);
         const primaryBlob = await getAttachmentBlob(primaryAtt.id);
         const fd = new FormData();
         fd.append("document", primaryBlob, primaryAtt.name);
@@ -198,24 +158,21 @@ async function handleUpload() {
             body: fd
         });
 
-        if (!uploadResp.ok) {
-            throw new Error(`Upload failed: HTTP ${uploadResp.status}`);
-        }
+        if (!uploadResp.ok) throw new Error("Primary upload failed: " + uploadResp.status);
 
         const uploadData = await uploadResp.json();
         currentConversationId = uploadData.conversation_id || uploadData.conversationId;
         currentDocumentId     = uploadData.doc_id || uploadData.documentId;
 
-        if (!currentConversationId) throw new Error("No conversation_id returned from upload.");
-
-        // Step 2: Upload supporting documents (bundle mode)
+        // 2. Upload Supporting Docs
         if (isBundleMode && attachments.length > 1) {
             for (let i = 0; i < attachments.length; i++) {
                 if (i === pIdx) continue;
-                setLoadingText(`Uploading supporting: ${attachments[i].name}…`);
+                setLoadingText(`Adding ${attachments[i].name} to bundle...`);
                 const blob = await getAttachmentBlob(attachments[i].id);
                 const sf = new FormData();
                 sf.append("document", blob, attachments[i].name);
+                
                 await fetch(`${BUNDLE_ADD_URL}?conversation_id=${currentConversationId}`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
@@ -224,71 +181,29 @@ async function handleUpload() {
             }
         }
 
-        // Step 3: Welcome API
-        setLoadingText("Preparing analysis…");
-        const welcomeResult = await callWelcomeAPI(token);
+        // 3. Welcome Analysis
+        setLoadingText("Analyzing documents...");
+        const welcomeData = await callWelcomeAPI(token);
 
-        // Step 4: Switch to chat
-        chatHistory = [];
         showView("chat");
-
-        // Show welcome message
-        if (welcomeResult.message) {
-            appendMessage("ai", welcomeResult.message);
-        }
-
-        // Show suggested questions
-        if (welcomeResult.tags && welcomeResult.tags.length > 0) {
-            renderSuggestions(welcomeResult.tags);
-        }
+        if (welcomeData.message) appendMessage("ai", welcomeData.message);
+        if (welcomeData.tags) renderSuggestions(welcomeData.tags);
 
     } catch (err) {
-        console.error("Upload error:", err);
         showError(err.message);
     }
 }
 
-// ── Welcome API ───────────────────────────────────────────────────
-async function callWelcomeAPI(token) {
-    try {
-        const resp = await fetch(WELCOME_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                conversationId: currentConversationId,
-                documentId: currentDocumentId
-            })
-        });
-
-        if (!resp.ok) return { message: "How can I help you today?", tags: [] };
-
-        const data = await resp.json();
-        return {
-            message: data.message || data.answer || data.response || "How can I help you today?",
-            tags: data.tags || []
-        };
-    } catch (err) {
-        console.error("Welcome API error:", err);
-        return { message: "How can I help you today?", tags: [] };
-    }
-}
-
-// ── Chat ──────────────────────────────────────────────────────────
+// ── Chat Functionality ────────────────────────────────────────────
 async function sendChatMessage() {
     const input = document.getElementById("user-input");
     const text = input.value.trim();
     if (!text) return;
 
     input.value = "";
-    autoResizeTextarea(input);
     hideSuggestions();
     appendMessage("user", text);
-    document.getElementById("btn-send").disabled = true;
-
-    // Add typing indicator
+    
     const typingId = appendTypingIndicator();
 
     try {
@@ -307,85 +222,87 @@ async function sendChatMessage() {
         });
 
         removeTypingIndicator(typingId);
-
         const data = await resp.json();
-        const answer = data.answer || data.response || data.message || "No response received.";
-
-        chatHistory.push({ role: "user", text });
-        chatHistory.push({ role: "ai", text: answer });
-
+        const answer = data.answer || data.response || "No response.";
+        
         appendMessage("ai", formatAIResponse(answer));
-
-        if (data.tags && data.tags.length > 0) {
-            renderSuggestions(data.tags);
-        }
+        if (data.tags) renderSuggestions(data.tags);
 
     } catch (err) {
         removeTypingIndicator(typingId);
         appendMessage("ai", "Error: " + err.message);
-    } finally {
-        document.getElementById("btn-send").disabled = false;
     }
 }
 
-async function onSuggestedQuestion(question) {
-    hideSuggestions();
-    document.getElementById("user-input").value = question;
-    await sendChatMessage();
+// ── Helpers ───────────────────────────────────────────────────────
+
+async function callWelcomeAPI(token) {
+    const resp = await fetch(WELCOME_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ conversationId: currentConversationId, documentId: currentDocumentId })
+    });
+    return resp.ok ? await resp.json() : { message: "Analysis complete. How can I help?" };
 }
 
-// ── Suggested Questions ───────────────────────────────────────────
-function renderSuggestions(tags) {
-    const bar = document.getElementById("suggestions-bar");
-    const list = document.getElementById("suggestions-list");
-    list.innerHTML = "";
+function getAttachmentBlob(attachmentId) {
+    return new Promise((resolve, reject) => {
+        Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                const base64 = result.value.content;
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                resolve(new Blob([bytes]));
+            } else reject(new Error(result.error.message));
+        });
+    });
+}
 
-    tags.forEach((tag) => {
-        const text = typeof tag === "string" ? tag : (tag["next-question"] || "");
-        if (!text.trim()) return;
+function formatAIResponse(text) {
+    if (!text) return "";
+    return text
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/\*(.*?)\*/g, "<i>$1</i>")
+        .replace(/\n/g, "<br>");
+}
+
+function renderSuggestions(tags) {
+    const list = document.getElementById("suggestions-list");
+    const bar = document.getElementById("suggestions-bar");
+    list.innerHTML = "";
+    tags.forEach(t => {
+        const q = typeof t === 'string' ? t : (t['next-question'] || "");
+        if (!q) return;
         const btn = document.createElement("button");
         btn.className = "suggestion-btn";
-        btn.textContent = text;
-        btn.addEventListener("click", () => onSuggestedQuestion(text));
+        btn.innerText = q;
+        btn.onclick = () => {
+            document.getElementById("user-input").value = q;
+            sendChatMessage();
+        };
         list.appendChild(btn);
     });
-
     bar.classList.remove("hidden");
 }
 
-function hideSuggestions() {
-    document.getElementById("suggestions-bar").classList.add("hidden");
-    document.getElementById("suggestions-list").innerHTML = "";
-}
-
-// ── Message Rendering ─────────────────────────────────────────────
 function appendMessage(role, html) {
     const hist = document.getElementById("chat-history");
-    const wrap = document.createElement("div");
-    wrap.className = role === "user" ? "msg-row msg-user-row" : "msg-row msg-ai-row";
-
-    if (role === "ai") {
-        wrap.innerHTML = `
-            <div class="ai-avatar">AI</div>
-            <div class="bubble msg-ai-bubble">${html}</div>`;
-    } else {
-        wrap.innerHTML = `<div class="bubble msg-user-bubble">${html}</div>`;
-    }
-
-    hist.appendChild(wrap);
-    scrollChatToBottom();
-    return wrap;
+    const div = document.createElement("div");
+    div.className = role === "user" ? "msg-row msg-user" : "msg-row msg-ai";
+    div.innerHTML = `<div class="bubble">${html}</div>`;
+    hist.appendChild(div);
+    document.getElementById("chat-window").scrollTop = hist.scrollHeight;
 }
 
 function appendTypingIndicator() {
-    const hist = document.getElementById("chat-history");
     const id = "typing-" + Date.now();
+    const hist = document.getElementById("chat-history");
     const div = document.createElement("div");
     div.id = id;
-    div.className = "msg-row msg-ai-row";
-    div.innerHTML = `<div class="ai-avatar">AI</div><div class="bubble msg-ai-bubble typing-indicator"><span></span><span></span><span></span></div>`;
+    div.className = "msg-row msg-ai";
+    div.innerHTML = `<div class="bubble">...</div>`;
     hist.appendChild(div);
-    scrollChatToBottom();
     return id;
 }
 
@@ -394,96 +311,29 @@ function removeTypingIndicator(id) {
     if (el) el.remove();
 }
 
-function scrollChatToBottom() {
-    const win = document.getElementById("chat-window");
-    win.scrollTop = win.scrollHeight;
-}
+function hideSuggestions() { document.getElementById("suggestions-bar").classList.add("hidden"); }
 
-// ── AI Response Formatter (mirrors Gmail add-on formatAIResponse) ─
-function formatAIResponse(text) {
-    if (!text) return "";
-    return text
-        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-        .replace(/__(.*?)__/g, "<b>$1</b>")
-        .replace(/\*(.*?)\*/g, "<i>$1</i>")
-        .replace(/_(.*?)_/g, "<i>$1</i>")
-        .replace(/^### (.*?)$/gm, "<b>$1</b>")
-        .replace(/^## (.*?)$/gm, "<b>$1</b>")
-        .replace(/^# (.*?)$/gm, "<b>$1</b>")
-        .replace(/^[-*] (.*?)$/gm, "• $1")
-        .replace(/^\d+\. (.*?)$/gm, "• $1")
-        .replace(/\n/g, "<br>");
-}
-
-// ── Get Attachment as Blob ────────────────────────────────────────
-function getAttachmentBlob(attachmentId) {
-    return new Promise((resolve, reject) => {
-        Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
-            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                const base64 = result.value.content;
-                const byteChars = atob(base64);
-                const byteArr = new Uint8Array(byteChars.length);
-                for (let i = 0; i < byteChars.length; i++) {
-                    byteArr[i] = byteChars.charCodeAt(i);
-                }
-                resolve(new Blob([byteArr]));
-            } else {
-                reject(new Error(result.error.message));
-            }
-        });
-    });
-}
-
-// ── View Management ───────────────────────────────────────────────
 function showView(name) {
-    ["view-attachments", "view-loading", "view-chat", "view-error"].forEach((id) => {
-        document.getElementById(id).classList.add("hidden");
-    });
+    document.querySelectorAll(".view").forEach(v => v.classList.add("hidden"));
     document.getElementById("view-" + name).classList.remove("hidden");
 }
 
 function showError(msg) {
-    document.getElementById("error-msg").textContent = msg || "Unknown error.";
+    document.getElementById("error-msg").innerText = msg;
     showView("error");
 }
 
-function resetToAttachments() {
-    currentConversationId = null;
-    currentDocumentId = null;
-    chatHistory = [];
-    document.getElementById("chat-history").innerHTML = "";
-    hideSuggestions();
-    showView("attachments");
+function resetToAttachments() { showView("attachments"); }
+
+function setLoadingText(msg) { document.getElementById("loading-text").innerText = msg; }
+
+function formatBytes(b) {
+    if (b < 1024) return b + " B";
+    return (b / 1024).toFixed(1) + " KB";
 }
 
-function setLoadingText(msg) {
-    document.getElementById("loading-text").textContent = msg;
-}
-
-// ── Textarea Auto-Resize ──────────────────────────────────────────
-function autoResizeTextarea(el) {
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 100) + "px";
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-    const ta = document.getElementById("user-input");
-    if (ta) ta.addEventListener("input", () => autoResizeTextarea(ta));
-});
-
-// ── Helpers ───────────────────────────────────────────────────────
-function formatBytes(bytes) {
-    if (!bytes) return "";
-    if (bytes < 1024) return bytes + " B";
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
-    return (bytes / 1048576).toFixed(1) + " MB";
-}
-
-function getIconForName(name) {
-    if (!name) return "📄";
-    const ext = name.split(".").pop().toLowerCase();
-    const map = { pdf: "📕", doc: "📘", docx: "📘", xls: "📗", xlsx: "📗",
-                  ppt: "📙", pptx: "📙", jpg: "🖼", jpeg: "🖼", png: "🖼",
-                  zip: "📦", rar: "📦", mp4: "🎬", mp3: "🎵" };
-    return map[ext] || "📄";
+function getIconForName(n) {
+    const ext = n.split('.').pop().toLowerCase();
+    const icons = { pdf: "📕", docx: "📘", xlsx: "📗", pptx: "📙", png: "🖼️", jpg: "🖼️" };
+    return icons[ext] || "📄";
 }

@@ -5,85 +5,48 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Blue AI</title>
+    <!-- ONLY Office.js is needed now -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
-    <!-- MSAL.js for Microsoft Entra authentication -->
-    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.js"></script>
     <link rel="stylesheet" href="taskpane.css">
 </head>
 <body>
+    <!-- ... same body content as before ... -->
     <div id="app-body">
-
-        <!-- ── Header ── -->
         <div class="header">
-            <!-- <img src="../../assets/logo.png" class="logo" width="30" height="30" alt="Blue AI"/> -->
             <div class="header-text">
                 <div class="header-title">Analyse Document</div>
                 <div class="header-sub">SmartBlue AI</div>
             </div>
         </div>
 
-        <!-- ── View 1: Attachments ── -->
         <div id="view-attachments" class="view">
-            <div class="view-scroll">
-                <div class="section-label">ATTACHMENTS</div>
-                <div id="attachment-list">
-                    <div class="loading-row">Loading attachments…</div>
-                </div>
-
-                <!-- Bundle toggle -->
-                <div class="bundle-toggle" id="bundle-toggle-row">
-                    <label class="toggle-label">
-                        <input type="checkbox" id="chk-bundle" checked/>
-                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        <span class="toggle-text">Upload as Bundle</span>
-                    </label>
-                </div>
-
-                <div id="primary-label" class="section-label" style="margin-top:12px;">PRIMARY DOCUMENT</div>
-                <div id="primary-list"></div>
+            <div id="attachment-list">Loading attachments...</div>
+            <div class="bundle-toggle" id="bundle-toggle-row">
+                <label class="toggle-label">
+                    <input type="checkbox" id="chk-bundle" checked/>
+                    <span class="toggle-text">Upload as Bundle</span>
+                </label>
             </div>
-            <div class="view-footer">
-                <button id="btn-upload" class="btn-primary">⬆ Upload &amp; Analyse</button>
-            </div>
+            <div id="primary-list"></div>
+            <button id="btn-upload" class="btn-primary">⬆ Upload &amp; Analyse</button>
         </div>
 
-        <!-- ── View 2: Loading / Progress ── -->
         <div id="view-loading" class="view hidden">
-            <div class="loading-center">
-                <div class="spinner"></div>
-                <div id="loading-text" class="loading-text">Uploading document…</div>
-            </div>
+            <div class="spinner"></div>
+            <div id="loading-text">Uploading...</div>
         </div>
 
-        <!-- ── View 3: Chat ── -->
         <div id="view-chat" class="view hidden">
-            <div id="chat-window">
-                <!-- Welcome message injected here -->
-                <div id="chat-history"></div>
-            </div>
-
-            <!-- Suggested questions bar -->
-            <div id="suggestions-bar" class="suggestions-bar hidden">
-                <div class="suggestions-label">Suggested questions</div>
-                <div id="suggestions-list"></div>
-            </div>
-
-            <!-- Input -->
-            <div class="input-bar">
-                <textarea id="user-input" class="input-field" rows="1" placeholder="Ask a question…"></textarea>
-                <button id="btn-send" class="btn-send">&#9658;</button>
-            </div>
+            <div id="chat-history"></div>
+            <div id="suggestions-bar" class="hidden"><div id="suggestions-list"></div></div>
+            <textarea id="user-input" placeholder="Ask a question..."></textarea>
+            <button id="btn-send">Send</button>
         </div>
 
-        <!-- ── View 4: Error ── -->
         <div id="view-error" class="view hidden">
-            <div class="error-center">
-                <div class="error-icon">⚠️</div>
-                <div id="error-msg" class="error-msg">Something went wrong.</div>
-                <button id="btn-retry" class="btn-outline" onclick="resetToAttachments()">↩ Try Again</button>
-            </div>
+            <div id="error-msg"></div>
+            <button onclick="resetToAttachments()">Try Again</button>
         </div>
-
     </div>
     <script src="taskpane.js"></script>
 </body>
