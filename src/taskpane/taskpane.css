@@ -16,21 +16,19 @@ body, #app-body {
 /* ── Header ───────────────────────────────────────────── */
 .header {
   background: #0D47A1;
-  color: white;
   padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 10px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.25);
   flex-shrink: 0;
-  z-index: 10;
 }
-.logo { border-radius: 6px; flex-shrink: 0; }
-.header-title { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.2; }
-.header-sub   { font-size: 11px; color: #90CAF9; }
+.logo           { border-radius: 6px; flex-shrink: 0; }
+.header-title   { font-size: 14px; font-weight: 700; color: #fff; }
+.header-sub     { font-size: 11px; color: #90CAF9; }
 
 /* ── Views ────────────────────────────────────────────── */
-.view { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.view   { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .hidden { display: none !important; }
 
 /* ── Attachment View ──────────────────────────────────── */
@@ -41,10 +39,9 @@ body, #app-body {
 }
 .view-footer {
   padding: 10px 14px 14px;
-  flex-shrink: 0;
   background: #f4f6fb;
+  flex-shrink: 0;
 }
-
 .section-label {
   font-size: 10px;
   font-weight: 700;
@@ -53,8 +50,8 @@ body, #app-body {
   text-transform: uppercase;
   margin-bottom: 8px;
 }
-
-.loading-row { font-size: 13px; color: #888; padding: 8px 0; }
+.loading-row  { font-size: 13px; color: #888; padding: 8px 0; }
+.empty-state  { font-size: 13px; color: #999; padding: 20px 0; text-align: center; }
 
 .att-card {
   display: flex;
@@ -66,13 +63,13 @@ body, #app-body {
   padding: 10px 12px;
   margin-bottom: 8px;
 }
-.att-icon  { font-size: 20px; flex-shrink: 0; }
-.att-name  { font-size: 13px; font-weight: 600; color: #1a1a2e; word-break: break-all; }
-.att-size  { font-size: 11px; color: #888; margin-top: 2px; }
+.att-icon    { font-size: 20px; flex-shrink: 0; }
+.att-name    { font-size: 13px; font-weight: 600; color: #1a1a2e; word-break: break-all; }
+.att-size    { font-size: 11px; color: #888; margin-top: 2px; }
 .att-name-sm { font-size: 12px; color: #333; }
 
 /* Bundle Toggle */
-.bundle-toggle { margin: 10px 0 4px; }
+.bundle-toggle { margin: 12px 0 4px; }
 .toggle-label  { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .toggle-track  {
   position: relative;
@@ -90,6 +87,7 @@ input[type="checkbox"]:checked + .toggle-track { background: #1A73E8; }
   background: white;
   border-radius: 50%;
   transition: left 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 input[type="checkbox"]:checked + .toggle-track .toggle-thumb { left: 18px; }
 input[type="checkbox"] { display: none; }
@@ -102,8 +100,6 @@ input[type="checkbox"] { display: none; }
   padding: 8px 12px;
   margin-bottom: 6px;
 }
-
-.empty-state { font-size: 13px; color: #999; padding: 20px 0; text-align: center; }
 
 /* ── Loading View ─────────────────────────────────────── */
 .loading-center {
@@ -131,9 +127,7 @@ input[type="checkbox"] { display: none; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f4f6fb;
 }
-
 #chat-window {
   flex: 1;
   overflow-y: auto;
@@ -144,48 +138,37 @@ input[type="checkbox"] { display: none; }
   scroll-behavior: smooth;
 }
 
-/* Message rows */
-.msg-row { display: flex; align-items: flex-end; gap: 8px; }
-.msg-user-row { justify-content: flex-end; }
-.msg-ai-row   { justify-content: flex-start; }
+.msg-row    { display: flex; }
+.msg-user   { justify-content: flex-end; }
+.msg-ai     { justify-content: flex-start; }
 
 .bubble {
   padding: 10px 14px;
   border-radius: 16px;
-  max-width: 82%;
+  max-width: 85%;
   font-size: 13px;
   line-height: 1.55;
   word-break: break-word;
 }
-.msg-user-bubble {
+.msg-user .bubble {
   background: #1A73E8;
   color: white;
   border-radius: 16px 16px 4px 16px;
 }
-.msg-ai-bubble {
+.msg-ai .bubble {
   background: white;
   color: #1a1a2e;
   border-radius: 16px 16px 16px 4px;
   border: 1px solid #e3e8f0;
 }
-.msg-ai-bubble b { color: #0D47A1; }
-
-.ai-avatar {
-  width: 28px; height: 28px;
-  background: #0D47A1;
-  color: white;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 700;
-  flex-shrink: 0;
-}
+.msg-ai .bubble b { color: #0D47A1; }
 
 /* Typing indicator */
 .typing-indicator {
   display: flex;
-  gap: 4px;
+  gap: 5px;
   align-items: center;
-  padding: 12px 16px;
+  padding: 4px 2px;
 }
 .typing-indicator span {
   width: 7px; height: 7px;
