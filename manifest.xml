@@ -58,7 +58,7 @@
     </Requirements>
 
     <Hosts>
-      <Host xsi:type="MailHost">
+      <Host xsi:type="Mailbox">
         <DesktopFormFactor>
           <FunctionFile resid="Taskpane.Url"/>
           <ExtensionPoint xsi:type="MessageReadCommandSurface">
@@ -101,7 +101,7 @@
         <bt:String id="TaskpaneButton.Label" DefaultValue="Analyse with Blue AI"/>
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Open the Blue AI analysis pane for this email."/>
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Open the Blue AI analysis pane."/>
       </bt:LongStrings>
     </Resources>
 
@@ -175,5 +175,16 @@
 
     </VersionOverrides>
   </VersionOverrides>
+
+  <!-- ADD THIS SECTION TO FIX AUTH ISSUE 13000 -->
+  <WebApplicationInfo>
+    <Id>7fae96f5-9626-4762-bfee-f42353b53783</Id>
+    <Resource>api://blueailabs.onmicrosoft.com/7fae96f5-9626-4762-bfee-f42353b53783</Resource>
+    <Scopes>
+      <bt:Scope>openid</bt:Scope>
+      <bt:Scope>profile</bt:Scope>
+      <bt:Scope>email</bt:Scope>
+    </Scopes>
+  </WebApplicationInfo>
 
 </OfficeApp>
