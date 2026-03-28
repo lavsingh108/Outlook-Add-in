@@ -5,7 +5,7 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
-  <Id>7fae96f5-9626-4762-bfee-f42353b53783</Id>
+  <Id>c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Id>
   <Version>1.0.0.4</Version>
   <ProviderName>SmartBlue</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
@@ -148,8 +148,8 @@
         </bt:LongStrings>
       </Resources>
       <WebApplicationInfo>
-        <Id>7fae96f5-9626-4762-bfee-f42353b53783</Id>
-        <Resource>api://lavsingh108.github.io/Outlook-Add-in/7fae96f5-9626-4762-bfee-f42353b53783</Resource>
+        <Id>c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Id>
+        <Resource>api://lavsingh108.github.io/Outlook-Add-in/c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Resource>
         <Scopes>
           <Scope>openid</Scope>
           <Scope>profile</Scope>
