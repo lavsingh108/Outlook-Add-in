@@ -1,9 +1,9 @@
 /* global Office, document, fetch, FormData, atob, Uint8Array, Blob */
 
-const AUTH_URL     = "https://ws.demo.smartblue.ai/v1/authenticate";
-const UPLOAD_URL   = "https://ws.demo.smartblue.ai/v1/document/upload";
+const AUTH_URL       = "https://ws.demo.smartblue.ai/v1/authenticate";
+const UPLOAD_URL     = "https://ws.demo.smartblue.ai/v1/document/upload";
 const BUNDLE_ADD_URL = "https://ws.demo.smartblue.ai/v1/document/bundle/add";
-const ASK_URL      = "https://ws.demo.smartblue.ai/v1/conversation/ask/question";
+const ASK_URL        = "https://ws.demo.smartblue.ai/v1/conversation/ask/question";
 
 let currentConversationId = null;
 
@@ -27,9 +27,9 @@ function init() {
 
 // ── Load attachments ──────────────────────────────────────────────
 function loadAttachments() {
-    const item = Office.context.mailbox.item;
+    const item        = Office.context.mailbox.item;
     const attachments = item.attachments;
-    const listDiv = document.getElementById("attachment-list");
+    const listDiv     = document.getElementById("attachment-list");
 
     if (!attachments || attachments.length === 0) {
         listDiv.innerHTML = "<p style='color:#888;font-size:13px;'>No attachments found in this email.</p>";
@@ -51,65 +51,79 @@ function loadAttachments() {
     });
 }
 
-// ── Auth: Microsoft ID Token → SmartBlue session token ───────────
+// ── Auth: Try SSO first, fall back to Exchange Identity Token ─────
 async function getAuthToken() {
+
+    // ── Method 1: Office SSO (requires Azure App Registration) ───
     try {
-        // Step 1: Get Microsoft ID token from Office SSO
         const msIdToken = await Office.auth.getAccessToken({
             allowSignInPrompt:  true,
             allowConsentPrompt: true,
             forMSGraphAccess:   false
         });
-        console.log("MS ID token acquired:", msIdToken.substring(0, 40) + "...");
+        console.log("SSO token acquired, exchanging with SmartBlue...");
 
-        // Step 2: Exchange Microsoft ID token for SmartBlue session token
         const authResp = await fetch(AUTH_URL, {
-            method: "GET",
-            headers: {
-                "Authorization": "Microsoft " + msIdToken
-                // ⚠️ If this fails, try: "Bearer " + msIdToken
-                // Ask your backend team what prefix /v1/authenticate expects
-            }
+            method:  "GET",
+            headers: { "Authorization": "Microsoft " + msIdToken }
         });
 
-        if (!authResp.ok) {
-            const errText = await authResp.text();
-            throw new Error(`Auth exchange failed (${authResp.status}): ${errText}`);
+        if (authResp.ok) {
+            const authData = await authResp.json();
+            if (authData.token) {
+                console.log("SmartBlue session token acquired via SSO");
+                return authData.token;
+            }
         }
+        throw new Error("SSO exchange returned no token");
 
-        const authData = await authResp.json();
-        const sessionToken = authData.token;
-
-        if (!sessionToken) throw new Error("No token returned from /v1/authenticate");
-
-        console.log("SmartBlue session token acquired");
-        return sessionToken;
-
-    } catch (err) {
-        // Log the full error code for debugging
-        console.error("Auth error — code:", err.code, "| message:", err.message);
-
-        // Common Office SSO error codes
-        const codeMessages = {
-            13001: "User not signed in to Office.",
-            13002: "User cancelled the sign-in.",
-            13003: "User type not supported (personal Microsoft account).",
-            13005: "Add-in not properly registered in Azure AD.",
-            13006: "Client error — try reloading Outlook.",
-            13007: "Add-in host cannot get access token right now.",
-            13008: "Previous operation still in progress, please wait.",
-            13012: "Add-in running in unsupported environment.",
-        };
-
-        const friendly = codeMessages[err.code];
-        throw new Error(friendly || ("Authentication failed: " + err.message));
+    } catch (ssoErr) {
+        console.warn("SSO failed (code " + ssoErr.code + "), trying Exchange identity token...");
     }
+
+    // ── Method 2: Exchange Identity Token (works without Azure setup) ─
+    return new Promise((resolve, reject) => {
+        Office.context.mailbox.getUserIdentityTokenAsync(async (result) => {
+            if (result.status !== Office.AsyncResultStatus.Succeeded) {
+                reject(new Error("Identity token failed: " + result.error.message));
+                return;
+            }
+
+            const exchangeToken = result.value;
+            console.log("Exchange identity token acquired, exchanging with SmartBlue...");
+
+            try {
+                const authResp = await fetch(AUTH_URL, {
+                    method:  "GET",
+                    headers: { "Authorization": "Exchange " + exchangeToken }
+                });
+
+                if (!authResp.ok) {
+                    const errText = await authResp.text();
+                    reject(new Error("Auth failed (" + authResp.status + "): " + errText));
+                    return;
+                }
+
+                const authData = await authResp.json();
+                if (!authData.token) {
+                    reject(new Error("No token returned from /v1/authenticate"));
+                    return;
+                }
+
+                console.log("SmartBlue session token acquired via Exchange token");
+                resolve(authData.token);
+
+            } catch (fetchErr) {
+                reject(new Error("Auth request failed: " + fetchErr.message));
+            }
+        });
+    });
 }
 
 // ── Upload attachments and switch to chat ─────────────────────────
 async function handleBundleUpload() {
-    const item = Office.context.mailbox.item;
-    const selected = document.querySelector("input[name='primaryIndex']:checked");
+    const item        = Office.context.mailbox.item;
+    const selected    = document.querySelector("input[name='primaryIndex']:checked");
     if (!selected) { showStatus("Please select a primary document."); return; }
 
     const primaryIndex = parseInt(selected.value);
@@ -121,16 +135,15 @@ async function handleBundleUpload() {
     try {
         const token = await getAuthToken();
 
-        // Upload primary document
         showStatus("Uploading primary document...");
         const primaryBlob = await getAttachmentBlob(primaryAtt.id);
         const formData = new FormData();
         formData.append("document", primaryBlob, primaryAtt.name);
 
         const response = await fetch(UPLOAD_URL, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData,
+            method:  "POST",
+            headers: { Authorization: "Bearer " + token },
+            body:    formData,
         });
 
         if (!response.ok) throw new Error("Upload failed: HTTP " + response.status);
@@ -138,37 +151,36 @@ async function handleBundleUpload() {
         const data = await response.json();
         currentConversationId = data.conversation_id;
 
-        // Upload supporting documents
         showStatus("Uploading supporting documents...");
         for (let i = 0; i < item.attachments.length; i++) {
             if (i === primaryIndex) continue;
             const blob = await getAttachmentBlob(item.attachments[i].id);
             const sf = new FormData();
             sf.append("document", blob, item.attachments[i].name);
-            await fetch(`${BUNDLE_ADD_URL}?conversation_id=${currentConversationId}`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: sf,
+            await fetch(BUNDLE_ADD_URL + "?conversation_id=" + currentConversationId, {
+                method:  "POST",
+                headers: { Authorization: "Bearer " + token },
+                body:    sf,
             });
         }
 
         switchToChat();
+
     } catch (err) {
         showStatus("Error: " + err.message);
         document.getElementById("btn-upload-bundle").disabled = false;
     }
 }
 
-// ── Get attachment content as Blob ────────────────────────────────
+// ── Get attachment as Blob ────────────────────────────────────────
 function getAttachmentBlob(attachmentId) {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
-                const base64   = result.value.content;
-                const byteChars = atob(base64);
-                const byteArr  = new Uint8Array(byteChars.length);
-                for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
-                resolve(new Blob([byteArr]));
+                const binary = atob(result.value.content);
+                const bytes  = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                resolve(new Blob([bytes]));
             } else {
                 reject(new Error(result.error.message));
             }
@@ -190,8 +202,8 @@ async function sendChatMessage() {
         const token = await getAuthToken();
         const resp  = await fetch(ASK_URL, {
             method:  "POST",
-            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-            body:    JSON.stringify({ conversationId: currentConversationId, text, isMobile: false }),
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body:    JSON.stringify({ conversationId: currentConversationId, text: text, isMobile: false }),
         });
         const data = await resp.json();
         appendMessage("ai", data.answer || data.response || "No response received.");
@@ -206,7 +218,7 @@ function appendMessage(role, text) {
     const hist = document.getElementById("chat-history");
     const div  = document.createElement("div");
     div.className = role === "user" ? "msg-user" : "msg-ai";
-    div.innerHTML = `<strong>${role === "user" ? "You" : "Blue AI"}:</strong><br>${text}`;
+    div.innerHTML = "<strong>" + (role === "user" ? "You" : "Blue AI") + ":</strong><br>" + text;
     hist.appendChild(div);
     hist.scrollTop = hist.scrollHeight;
 }
