@@ -54,8 +54,11 @@ function loadAttachments() {
 // ── Get auth token ────────────────────────────────────────────────
 async function getAuthToken() {
     // Replace with your real auth logic / Office SSO token
-    // Example: return await Office.auth.getAccessToken();
-    return "YOUR_SESSION_TOKEN_HERE";
+    const token = await Office.auth.getAccessToken();
+    console.log("Token:: ", token);
+    
+    return await Office.auth.getAccessToken();
+    // return "YOUR_SESSION_TOKEN_HERE";
 }
 
 // ── Upload attachments and switch to chat ─────────────────────────
