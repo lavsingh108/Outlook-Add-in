@@ -149,7 +149,7 @@
       </Resources>
       <WebApplicationInfo>
         <Id>c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Id>
-        <Resource>api://blueailabs.onmicrosoft.com/c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Resource>
+        <Resource>api://lavsingh108.github.io/c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Resource>
         <Scopes>
           <Scope>openid</Scope>
           <Scope>profile</Scope>
