@@ -22,7 +22,7 @@ const msalConfig = {
     }
 };
 
-const SCOPES = ["openid", "profile", "email"];
+const SCOPES = ["openid", "profile", "email", "User.Read"];
 
 let _msal = null;
 function getMsal() {
@@ -82,6 +82,7 @@ async function getAuthToken() {
     const msalInstance = getMsal();
 
     let idToken = null;
+    let accessToken = null;
 
     // 1. Try silent (cached session — no popup shown)
     const accounts = msalInstance.getAllAccounts();
@@ -92,6 +93,7 @@ async function getAuthToken() {
                 account: accounts[0]
             });
             idToken = silent.idToken;
+            accessToken = silent.accessToken;
             console.log("MSAL silent token OK:", accounts[0].username);
         } catch (silentErr) {
             console.warn("Silent failed, will try popup:", silentErr.message);
@@ -114,7 +116,13 @@ async function getAuthToken() {
     }
 
     // 3. Exchange Microsoft ID token for SmartBlue session token
-    console.log("Exchanging Microsoft ID token with SmartBlue...", idToken);
+    console.log("Exchanging Microsoft ID token with SmartBlue...");
+
+    // DEBUGGING: Log tokens (be careful in production!)
+    console.log("ID Token:", idToken);
+    console.log("Access Token:", accessToken);
+
+
     const authResp = await fetch(AUTH_URL, {
         method:  "GET",
         headers: { "Authorization": "Microsoft " + idToken }
