@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Blue AI</title>
 
-    <!-- 1. Office.js must load first -->
+    <!-- 1. Office.js -->
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
 
-    <!-- 2. MSAL must load before taskpane.js -->
-    <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+    <!-- 2. MSAL v2 via Microsoft CDN (last version with CDN support) -->
+    <script type="text/javascript" src="https://alcdn.msauth.net/browser/2.28.1/js/msal-browser.min.js"></script>
 
     <link rel="stylesheet" href="taskpane.css">
 </head>
@@ -41,7 +41,7 @@
         </div>
     </div>
 
-    <!-- 3. taskpane.js loads last — after both office.js and msal -->
+    <!-- 3. taskpane.js loads last -->
     <script type="text/javascript" src="taskpane.js"></script>
 </body>
 </html>
