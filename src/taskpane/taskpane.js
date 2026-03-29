@@ -118,11 +118,6 @@ async function getAuthToken() {
     // 3. Exchange Microsoft ID token for SmartBlue session token
     console.log("Exchanging Microsoft ID token with SmartBlue...");
 
-    // DEBUGGING: Log tokens (be careful in production!)
-    console.log("ID Token:", idToken);
-    console.log("Access Token:", accessToken);
-
-
     const authResp = await fetch(AUTH_URL, {
         method:  "GET",
         headers: { "Authorization": "Microsoft " + idToken }
