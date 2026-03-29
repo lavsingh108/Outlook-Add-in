@@ -1,12 +1,38 @@
-/* global Office, document, fetch, FormData, atob, Uint8Array, Blob */
+/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, msal */
 
 const AUTH_URL       = "https://ws.demo.smartblue.ai/v1/authenticate";
 const UPLOAD_URL     = "https://ws.demo.smartblue.ai/v1/document/upload";
 const BUNDLE_ADD_URL = "https://ws.demo.smartblue.ai/v1/document/bundle/add";
 const ASK_URL        = "https://ws.demo.smartblue.ai/v1/conversation/ask/question";
 
+// ── MSAL Config ───────────────────────────────────────────────────
+// Replace with your Azure App Registration values
+const AZURE_CLIENT_ID = "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7";  // Azure Portal → App registrations → Application (client) ID
+const AZURE_TENANT_ID = "f895e126-dbc8-41bb-b00b-5cd2172346f9";  // Azure Portal → App registrations → Directory (tenant) ID
+
+const msalConfig = {
+    auth: {
+        clientId:    AZURE_CLIENT_ID,
+        authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
+        redirectUri: window.location.href.split("?")[0]  // current page URL without query params
+    },
+    cache: {
+        cacheLocation:          "sessionStorage",
+        storeAuthStateInCookie: false
+    }
+};
+
+const SCOPES = ["openid", "profile", "email"];
+
+let _msal = null;
+function getMsal() {
+    if (!_msal) _msal = new msal.PublicClientApplication(msalConfig);
+    return _msal;
+}
+
 let currentConversationId = null;
 
+// ── Office Ready ──────────────────────────────────────────────────
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
         init();
@@ -51,85 +77,84 @@ function loadAttachments() {
     });
 }
 
-// ── Auth: Try SSO first, fall back to Exchange Identity Token ─────
+// ── Auth: MSAL.js popup → SmartBlue session token ────────────────
 async function getAuthToken() {
+    const msalInstance = getMsal();
 
-    // ── Method 1: Office SSO (requires Azure App Registration) ───
-    try {
-        const msIdToken = await Office.auth.getAccessToken({
-            allowSignInPrompt:  true,
-            allowConsentPrompt: true,
-            forMSGraphAccess:   false
-        });
-        console.log("SSO token acquired, exchanging with SmartBlue...");
+    let idToken = null;
 
-        const authResp = await fetch(AUTH_URL, {
-            method:  "GET",
-            headers: { "Authorization": "Microsoft " + msIdToken }
-        });
-
-        if (authResp.ok) {
-            const authData = await authResp.json();
-            if (authData.token) {
-                console.log("SmartBlue session token acquired via SSO");
-                return authData.token;
-            }
+    // 1. Try silent (cached session — no popup shown)
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+        try {
+            const silent = await msalInstance.acquireTokenSilent({
+                scopes:  SCOPES,
+                account: accounts[0]
+            });
+            idToken = silent.idToken;
+            console.log("MSAL silent token OK:", accounts[0].username);
+        } catch (silentErr) {
+            console.warn("Silent failed, will try popup:", silentErr.message);
         }
-        throw new Error("SSO exchange returned no token");
-
-    } catch (ssoErr) {
-        console.warn("SSO failed (code " + ssoErr.code + "), trying Exchange identity token...");
     }
 
-    // ── Method 2: Exchange Identity Token (works without Azure setup) ─
-    return new Promise((resolve, reject) => {
-        Office.context.mailbox.getUserIdentityTokenAsync(async (result) => {
-            if (result.status !== Office.AsyncResultStatus.Succeeded) {
-                reject(new Error("Identity token failed: " + result.error.message));
-                return;
-            }
+    // 2. Popup login if no cached session
+    if (!idToken) {
+        try {
+            const popup = await msalInstance.loginPopup({
+                scopes: SCOPES,
+                prompt: "select_account"
+            });
+            idToken = popup.idToken;
+            console.log("MSAL popup login OK:", popup.account.username);
+        } catch (popupErr) {
+            console.error("MSAL popup error:", popupErr);
+            throw new Error("Sign-in failed: " + (popupErr.message || popupErr.errorCode));
+        }
+    }
 
-            const exchangeToken = result.value;
-            console.log("Exchange identity token acquired, exchanging with SmartBlue...");
-
-            try {
-                const authResp = await fetch(AUTH_URL, {
-                    method:  "GET",
-                    headers: { "Authorization": "Exchange " + exchangeToken }
-                });
-
-                if (!authResp.ok) {
-                    const errText = await authResp.text();
-                    reject(new Error("Auth failed (" + authResp.status + "): " + errText));
-                    return;
-                }
-
-                const authData = await authResp.json();
-                if (!authData.token) {
-                    reject(new Error("No token returned from /v1/authenticate"));
-                    return;
-                }
-
-                console.log("SmartBlue session token acquired via Exchange token");
-                resolve(authData.token);
-
-            } catch (fetchErr) {
-                reject(new Error("Auth request failed: " + fetchErr.message));
-            }
-        });
+    // 3. Exchange Microsoft ID token for SmartBlue session token
+    console.log("Exchanging Microsoft ID token with SmartBlue...");
+    const authResp = await fetch(AUTH_URL, {
+        method:  "GET",
+        headers: { "Authorization": "Microsoft " + idToken }
     });
+
+    console.log("Auth response status:", authResp.status);
+    const rawText = await authResp.text();
+    console.log("Auth response body:", rawText);
+
+    if (!authResp.ok) {
+        throw new Error("Auth exchange failed (" + authResp.status + "): " + rawText);
+    }
+
+    let authData;
+    try { authData = JSON.parse(rawText); }
+    catch (e) { throw new Error("Auth response not JSON: " + rawText); }
+
+    const sessionToken = authData.token
+        || authData.access_token
+        || authData.accessToken
+        || authData.sessionToken;
+
+    if (!sessionToken) {
+        throw new Error("No token in auth response. Got keys: " + Object.keys(authData).join(", "));
+    }
+
+    console.log("SmartBlue session token acquired");
+    return sessionToken;
 }
 
-// ── Upload attachments and switch to chat ─────────────────────────
+// ── Upload pipeline ───────────────────────────────────────────────
 async function handleBundleUpload() {
-    const item        = Office.context.mailbox.item;
-    const selected    = document.querySelector("input[name='primaryIndex']:checked");
+    const item     = Office.context.mailbox.item;
+    const selected = document.querySelector("input[name='primaryIndex']:checked");
     if (!selected) { showStatus("Please select a primary document."); return; }
 
     const primaryIndex = parseInt(selected.value);
     const primaryAtt   = item.attachments[primaryIndex];
 
-    showStatus("Authenticating...");
+    showStatus("Signing in...");
     document.getElementById("btn-upload-bundle").disabled = true;
 
     try {
@@ -167,6 +192,7 @@ async function handleBundleUpload() {
         switchToChat();
 
     } catch (err) {
+        console.error("Upload error:", err);
         showStatus("Error: " + err.message);
         document.getElementById("btn-upload-bundle").disabled = false;
     }

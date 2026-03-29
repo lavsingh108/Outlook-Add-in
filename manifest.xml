@@ -154,6 +154,7 @@
           <Scope>openid</Scope>
           <Scope>profile</Scope>
           <Scope>email</Scope>
+          <Scope>access_as_user</Scope>
         </Scopes>
       </WebApplicationInfo>
     </VersionOverrides>
