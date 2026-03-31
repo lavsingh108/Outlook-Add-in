@@ -1,28 +1,24 @@
-/* global Office, document, fetch, FormData, atob, Uint8Array, Blob, msal */
-
 const AUTH_URL       = "https://ws.demo.smartblue.ai/v1/authenticate";
 const UPLOAD_URL     = "https://ws.demo.smartblue.ai/v1/document/upload";
 const BUNDLE_ADD_URL = "https://ws.demo.smartblue.ai/v1/document/bundle/add";
 const ASK_URL        = "https://ws.demo.smartblue.ai/v1/conversation/ask/question";
 
 // ── MSAL Config ───────────────────────────────────────────────────
-// Replace with your Azure App Registration values
 const AZURE_CLIENT_ID = "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7";  // Azure Portal → App registrations → Application (client) ID
 const AZURE_TENANT_ID = "f895e126-dbc8-41bb-b00b-5cd2172346f9";  // Azure Portal → App registrations → Directory (tenant) ID
+const SCOPES = ["openid", "profile", "email", "User.Read"];
 
 const msalConfig = {
     auth: {
-        clientId:    AZURE_CLIENT_ID,
-        authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
-        redirectUri: window.location.href.split("?")[0]  // current page URL without query params
+        clientId: AZURE_CLIENT_ID,
+        authority: "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
+        redirectUri: window.location.href.split("?")[0]
     },
     cache: {
-        cacheLocation:          "sessionStorage",
+        cacheLocation: "sessionStorage",
         storeAuthStateInCookie: false
     }
 };
-
-const SCOPES = ["openid", "profile", "email", "User.Read"];
 
 let _msal = null;
 function getMsal() {
@@ -32,7 +28,7 @@ function getMsal() {
 
 let currentConversationId = null;
 
-// ── Office Ready ──────────────────────────────────────────────────
+// ── Entry Point - Office Ready ────────────────────────────────────
 Office.onReady((info) => {
     if (info.host === Office.HostType.Outlook) {
         init();
@@ -53,9 +49,9 @@ function init() {
 
 // ── Load attachments ──────────────────────────────────────────────
 function loadAttachments() {
-    const item        = Office.context.mailbox.item;
+    const item = Office.context.mailbox.item;
     const attachments = item.attachments;
-    const listDiv     = document.getElementById("attachment-list");
+    const listDiv = document.getElementById("attachment-list");
 
     if (!attachments || attachments.length === 0) {
         listDiv.innerHTML = "<p style='color:#888;font-size:13px;'>No attachments found in this email.</p>";
@@ -119,7 +115,7 @@ async function getAuthToken() {
     console.log("Exchanging Microsoft ID token with SmartBlue...");
 
     const authResp = await fetch(AUTH_URL, {
-        method:  "GET",
+        method: "GET",
         headers: { "Authorization": "Microsoft " + idToken }
     });
 
@@ -150,7 +146,7 @@ async function getAuthToken() {
 
 // ── Upload pipeline ───────────────────────────────────────────────
 async function handleBundleUpload() {
-    const item     = Office.context.mailbox.item;
+    const item = Office.context.mailbox.item;
     const selected = document.querySelector("input[name='primaryIndex']:checked");
     if (!selected) { showStatus("Please select a primary document."); return; }
 
@@ -169,9 +165,9 @@ async function handleBundleUpload() {
         formData.append("document", primaryBlob, primaryAtt.name);
 
         const response = await fetch(UPLOAD_URL, {
-            method:  "POST",
+            method: "POST",
             headers: { Authorization: "Bearer " + token },
-            body:    formData,
+            body: formData,
         });
 
         if (!response.ok) throw new Error("Upload failed: HTTP " + response.status);
@@ -186,9 +182,9 @@ async function handleBundleUpload() {
             const sf = new FormData();
             sf.append("document", blob, item.attachments[i].name);
             await fetch(BUNDLE_ADD_URL + "?conversation_id=" + currentConversationId, {
-                method:  "POST",
+                method: "POST",
                 headers: { Authorization: "Bearer " + token },
-                body:    sf,
+                body: sf,
             });
         }
 
@@ -220,7 +216,7 @@ function getAttachmentBlob(attachmentId) {
 // ── Chat ──────────────────────────────────────────────────────────
 async function sendChatMessage() {
     const input = document.getElementById("user-input");
-    const text  = input.value.trim();
+    const text = input.value.trim();
     if (!text) return;
 
     appendMessage("user", text);
@@ -229,10 +225,10 @@ async function sendChatMessage() {
 
     try {
         const token = await getAuthToken();
-        const resp  = await fetch(ASK_URL, {
-            method:  "POST",
+        const resp = await fetch(ASK_URL, {
+            method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:    JSON.stringify({ conversationId: currentConversationId, text: text, isMobile: false }),
+            body: JSON.stringify({ conversationId: currentConversationId, text: text, isMobile: false }),
         });
         const data = await resp.json();
         appendMessage("ai", data.answer || data.response || "No response received.");
@@ -245,7 +241,7 @@ async function sendChatMessage() {
 
 function appendMessage(role, text) {
     const hist = document.getElementById("chat-history");
-    const div  = document.createElement("div");
+    const div = document.createElement("div");
     div.className = role === "user" ? "msg-user" : "msg-ai";
     div.innerHTML = "<strong>" + (role === "user" ? "You" : "Blue AI") + ":</strong><br>" + text;
     hist.appendChild(div);
@@ -261,7 +257,7 @@ function switchToChat() {
 function showStatus(msg) { document.getElementById("status-msg").innerText = msg; }
 
 function formatBytes(bytes) {
-    if (!bytes)       return "";
+    if (!bytes) return "";
     if (bytes < 1024) return bytes + " B";
     return (bytes / 1024).toFixed(1) + " KB";
 }
