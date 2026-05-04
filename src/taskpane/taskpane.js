@@ -104,7 +104,7 @@ async function getAuthToken() {
                 prompt: "select_account"
             });
             idToken = popup.idToken;
-            console.log("MSAL popup login OK:", popup.account.username);
+            console.log("MSAL popup login OK:", popup);
         } catch (popupErr) {
             console.error("MSAL popup error:", popupErr);
             throw new Error("Sign-in failed: " + (popupErr.message || popupErr.errorCode));
@@ -140,7 +140,7 @@ async function getAuthToken() {
         throw new Error("No token in auth response. Got keys: " + Object.keys(authData).join(", "));
     }
 
-    console.log("SmartBlue session token acquired");
+    console.log("SmartBlue session token acquired", sessionToken);
     return sessionToken;
 }
 
