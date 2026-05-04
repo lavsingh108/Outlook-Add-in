@@ -90,6 +90,7 @@ async function getAuthToken() {
             });
             idToken = silent.idToken;
             accessToken = silent.accessToken;
+            console.log("MSAL silent token acquired:", accessToken);
             console.log("MSAL silent token OK:", accounts[0].username);
         } catch (silentErr) {
             console.warn("Silent failed, will try popup:", silentErr.message);
