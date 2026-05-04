@@ -80,7 +80,6 @@ async function getAuthToken() {
     let idToken = null;
     let accessToken = null;
 
-    // 1. Try silent (cached session — no popup shown)
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
         try {
@@ -96,7 +95,6 @@ async function getAuthToken() {
         }
     }
 
-    // 2. Popup login if no cached session
     if (!idToken) {
         try {
             const popup = await msalInstance.loginPopup({
@@ -104,24 +102,19 @@ async function getAuthToken() {
                 prompt: "select_account"
             });
             idToken = popup.idToken;
-            console.log("MSAL popup login OK:", popup.account.username);
+            console.log("MSAL popup login OK:", popup);
         } catch (popupErr) {
             console.error("MSAL popup error:", popupErr);
             throw new Error("Sign-in failed: " + (popupErr.message || popupErr.errorCode));
         }
     }
 
-    // 3. Exchange Microsoft ID token for SmartBlue session token
-    console.log("Exchanging Microsoft ID token with SmartBlue...");
-
     const authResp = await fetch(AUTH_URL, {
         method: "GET",
         headers: { "Authorization": "Microsoft " + idToken }
     });
 
-    console.log("Auth response status:", authResp.status);
     const rawText = await authResp.text();
-    console.log("Auth response body:", rawText);
 
     if (!authResp.ok) {
         throw new Error("Auth exchange failed (" + authResp.status + "): " + rawText);
@@ -140,7 +133,7 @@ async function getAuthToken() {
         throw new Error("No token in auth response. Got keys: " + Object.keys(authData).join(", "));
     }
 
-    console.log("SmartBlue session token acquired");
+    console.log("SmartBlue session token acquired", sessionToken);
     return sessionToken;
 }
 
