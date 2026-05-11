@@ -169,7 +169,6 @@ async function handleBundleUpload() {
             method:  "POST",
             headers: { Authorization: "Bearer " + token },
             body:    formData,
-            // Do NOT set Content-Type — the browser sets multipart boundary automatically
         });
 
         if (!uploadResp.ok) {
@@ -205,14 +204,25 @@ async function handleBundleUpload() {
         }
 
         const welcomeResp = await fetch(WELCOME_URL, {
-            conversationId: currentConversationId,
-            documentId: currentDocumentId
-        },{
-            method:  "POST",
-            headers: { Authorization: "Bearer " + token }
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token
+            },
+            body: JSON.stringify({
+                conversationId: currentConversationId,
+                documentId: currentDocumentId
+            })
         });
+
         const welcomeData = await welcomeResp.json();
-        appendMessage("ai", welcomeData.answer || welcomeData.response || "No response received.");
+
+        appendMessage(
+            "ai",
+            welcomeData.answer ||
+            welcomeData.response ||
+            "No response received."
+        );
 
         switchToChat();
 
