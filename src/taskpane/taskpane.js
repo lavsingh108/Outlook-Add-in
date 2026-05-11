@@ -159,7 +159,7 @@ async function handleBundleUpload() {
 
         // ── Upload primary document ───────────────────────────────
         showStatus("Uploading primary document...");
-        const primaryBlob = await getAttachmentBlob(primaryAtt.id, primaryAtt.name);
+        const primaryBlob = await getAttachmentBlob(primaryAtt.id);
         const formData = new FormData();
         formData.append("document", primaryBlob, primaryAtt.name);
 
@@ -184,7 +184,7 @@ async function handleBundleUpload() {
         if (supporting.length > 0) {
             showStatus(`Uploading ${supporting.length} supporting document(s)...`);
             for (const att of supporting) {
-                const blob = await getAttachmentBlob(att.id, att.name);
+                const blob = await getAttachmentBlob(att.id);
                 const sf = new FormData();
                 sf.append("document", blob, att.name);
                 const bundleResp = await fetch(
@@ -212,52 +212,15 @@ async function handleBundleUpload() {
     }
 }
 
-// ── MIME type lookup by file extension ───────────────────────────
-// Outlook's getAttachmentContentAsync returns raw bytes with no type
-// metadata, so we derive the MIME type from the filename ourselves.
-function getMimeType(filename) {
-    const ext = (filename || "").split(".").pop().toLowerCase();
-    const MIME_MAP = {
-        // Documents
-        pdf:  "application/pdf",
-        doc:  "application/msword",
-        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        // Spreadsheets
-        xls:  "application/vnd.ms-excel",
-        xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        csv:  "text/csv",
-        // Presentations
-        ppt:  "application/vnd.ms-powerpoint",
-        pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        // Text
-        txt:  "text/plain",
-        rtf:  "application/rtf",
-        // Images
-        png:  "image/png",
-        jpg:  "image/jpeg",
-        jpeg: "image/jpeg",
-        gif:  "image/gif",
-        webp: "image/webp",
-        // Archives
-        zip:  "application/zip",
-        // Fallback — SmartBlue should accept this for anything not listed
-        "":   "application/octet-stream",
-    };
-    return MIME_MAP[ext] || "application/octet-stream";
-}
-
 // ── Get attachment as Blob ────────────────────────────────────────
-// filename is required so we can set the correct MIME type on the Blob.
-function getAttachmentBlob(attachmentId, filename) {
+function getAttachmentBlob(attachmentId) {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
-                const binary  = atob(result.value.content);
-                const bytes   = new Uint8Array(binary.length);
+                const binary = atob(result.value.content);
+                const bytes  = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                const mimeType = getMimeType(filename);
-                console.log(`Attachment "${filename}" → MIME type: ${mimeType}`);
-                resolve(new Blob([bytes], { type: mimeType }));
+                resolve(new Blob([bytes]));
             } else {
                 reject(new Error(result.error.message));
             }
