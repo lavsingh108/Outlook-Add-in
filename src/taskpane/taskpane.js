@@ -308,71 +308,13 @@ async function sendChatMessage() {
     }
 }
 
-// ── Response formatter ────────────────────────────────────────────
-/**
- * Converts the SmartBlue API response string to clean HTML.
- *
- * Handles:
- *  1. <blueEmbed-doc-page>UUID:file.pdf:N</blueEmbed-doc-page>
- *     → <span class="page-ref">pg N</span>
- *  2. **bold** → <strong>bold</strong>
- *  3. Lines starting with "* " or "● " → <ul><li> list items
- *  4. Remaining non-empty lines → <p> paragraphs
- */
-function formatResponse(raw) {
-    // 1. Replace citation tags — extract only the page number
-    let text = raw.replace(
-        /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
-        '<span class="page-ref">pg $1</span>'
-    );
-
-    // 2. Bold
-    text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-
-    // 3. Walk lines and build HTML
-    const lines = text.split(/\n/);
-    let html = "";
-    let inList = false;
-
-    for (const raw of lines) {
-        const line = raw.trim();
-        if (!line) {
-            // Blank line closes an open list
-            if (inList) { html += "</ul>"; inList = false; }
-            continue;
-        }
-        if (/^[*●•]\s+/.test(line)) {
-            if (!inList) { html += '<ul class="ai-list">'; inList = true; }
-            html += "<li>" + line.replace(/^[*●•]\s+/, "") + "</li>";
-        } else {
-            if (inList) { html += "</ul>"; inList = false; }
-            html += "<p>" + line + "</p>";
-        }
-    }
-    if (inList) html += "</ul>";
-
-    return html;
-}
-
 // ── UI helpers ────────────────────────────────────────────────────
 function appendMessage(role, text) {
     const hist = document.getElementById("chat-history");
     const div  = document.createElement("div");
-
-    if (role === "user") {
-        div.className = "msg-user";
-        // User messages: plain text, escape HTML
-        const p = document.createElement("p");
-        p.textContent = text;
-        div.appendChild(p);
-    } else {
-        div.className = "msg-ai";
-        // AI messages: full markdown + citation rendering
-        div.innerHTML = formatResponse(text);
-    }
-
+    div.className = role === "user" ? "msg-user" : "msg-ai";
+    div.innerHTML = "<strong>" + (role === "user" ? "You" : "Blue AI") + ":</strong><br>" + text;
     hist.appendChild(div);
-    // Scroll to the new message
     hist.scrollTop = hist.scrollHeight;
 }
 
