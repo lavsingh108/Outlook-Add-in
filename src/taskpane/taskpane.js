@@ -179,7 +179,7 @@ async function handleBundleUpload() {
         const uploadData = await uploadResp.json();
         currentConversationId = uploadData.conversation_id;
         currentDocumentId = uploadData.document_id;
-        console.log("Primary document uploaded. conversation_id:", currentConversationId);
+        console.log("Primary document uploaded:", uploadData);
 
         // ── Upload supporting documents ───────────────────────────
         const supporting = item.attachments.filter((_, i) => i !== primaryIndex);
