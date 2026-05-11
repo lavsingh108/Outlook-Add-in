@@ -1,6 +1,6 @@
 // ── Proxy base URL ────────────────────────────────────────────────
 // Change this to wherever you deploy the proxy server.
-const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";  // ← update this
+const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";
 
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
@@ -46,6 +46,7 @@ function init() {
     loadAttachments();
     document.getElementById("btn-upload-bundle").onclick = handleBundleUpload;
     document.getElementById("btn-send").onclick = sendChatMessage;
+    document.getElementById("btn-back").onclick = switchToAttachments;
     document.getElementById("user-input").addEventListener("keydown", function (e) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -320,6 +321,16 @@ function appendMessage(role, text) {
 function switchToChat() {
     document.getElementById("view-attachments").classList.add("hidden");
     document.getElementById("view-chat").classList.remove("hidden");
+    document.getElementById("btn-back").classList.remove("hidden");
+    showStatus("");
+}
+
+function switchToAttachments() {
+    document.getElementById("view-chat").classList.add("hidden");
+    document.getElementById("view-attachments").classList.remove("hidden");
+    document.getElementById("btn-back").classList.add("hidden");
+    // Re-enable upload button and clear status in case of prior error
+    document.getElementById("btn-upload-bundle").disabled = false;
     showStatus("");
 }
 
