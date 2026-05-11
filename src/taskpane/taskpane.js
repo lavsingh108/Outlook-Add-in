@@ -203,6 +203,8 @@ async function handleBundleUpload() {
             }
         }
 
+        console.log("Payload", currentConversationId, currentDocumentId);
+
         const welcomeResp = await fetch(WELCOME_URL, {
             method: "POST",
             headers: {
