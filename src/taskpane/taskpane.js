@@ -74,7 +74,7 @@ function loadAttachments() {
         div.className = "att-item";
         div.innerHTML = `
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="checkbox" name="primaryIndex" value="${index}" ${index === 0 ? "checked" : ""}/>
+                <input type="radio" name="primaryIndex" value="${index}" ${index === 0 ? "checked" : ""}/>
                 <span class="att-name">${att.name}</span>
                 <span class="att-size">(${formatBytes(att.size)})</span>
             </label>`;
