@@ -157,6 +157,44 @@ html, body {
 
 .msg-ai strong { color: #0D47A1; }
 
+/* Paragraphs inside AI bubble */
+.msg-ai p {
+    margin: 0 0 6px;
+    line-height: 1.55;
+}
+.msg-ai p:last-child { margin-bottom: 0; }
+
+/* Bullet list inside AI bubble */
+.msg-ai .ai-list {
+    margin: 4px 0 6px 4px;
+    padding-left: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.msg-ai .ai-list li {
+    line-height: 1.5;
+    list-style: disc;
+}
+.msg-ai .ai-list li::marker { color: #1A73E8; }
+
+/* Page citation badge  e.g. pg 7 */
+.page-ref {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: #E8F0FE;
+    color: #1A73E8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid #C5D8FB;
+    white-space: nowrap;
+    vertical-align: middle;
+    letter-spacing: 0.2px;
+}
+
 /* ── Input area — sticky at bottom ──────────────────────────────── */
 /*
  * flex-shrink: 0 prevents this from ever being squeezed.
