@@ -1,6 +1,6 @@
 // ── Proxy base URL ────────────────────────────────────────────────
 // Change this to wherever you deploy the proxy server.
-const PROXY_BASE     = "https://your-proxy-server.com";  // ← update this
+const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";  // ← update this
 
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
