@@ -5,6 +5,7 @@ const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
 const BUNDLE_ADD_URL = `${PROXY_BASE}/v1/document/bundle/add`;
+const WELCOME_URL    = `${PROXY_BASE}/v1/conversation/ask/welcome`;
 const ASK_URL        = `${PROXY_BASE}/v1/conversation/ask/question`;
 
 // ── MSAL Config ───────────────────────────────────────────────────
@@ -178,6 +179,7 @@ async function handleBundleUpload() {
 
         const uploadData = await uploadResp.json();
         currentConversationId = uploadData.conversation_id;
+        currentDocumentId = uploadData.document_id;
         console.log("Primary document uploaded. conversation_id:", currentConversationId);
 
         // ── Upload supporting documents ───────────────────────────
@@ -201,6 +203,16 @@ async function handleBundleUpload() {
                 }
             }
         }
+
+        const welcomeResp = await fetch(WELCOME_URL, {
+            conversationId: currentConversationId,
+            documentId: currentDocumentId
+        },{
+            method:  "POST",
+            headers: { Authorization: "Bearer " + token }
+        });
+        const welcomeData = await welcomeResp.json();
+        appendMessage("ai", welcomeData.answer || welcomeData.response || "No response received.");
 
         switchToChat();
 
