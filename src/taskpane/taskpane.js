@@ -116,33 +116,33 @@ async function getAuthToken() {
     console.log("Exchanging Microsoft ID token with SmartBlue...");
     console.log("Microsoft ID token:", idToken);
 
-    const authResp = await fetch(AUTH_URL, {
-        method: "GET",
-        headers: { "Authorization": "Microsoft " + idToken }
-    });
+    // const authResp = await fetch(AUTH_URL, {
+    //     method: "GET",
+    //     headers: { "Authorization": "Microsoft " + idToken }
+    // });
 
-    console.log("Auth response status:", authResp.status);
-    const rawText = await authResp.text();
-    console.log("Auth response body:", rawText);
+    // console.log("Auth response status:", authResp.status);
+    // const rawText = await authResp.text();
+    // console.log("Auth response body:", rawText);
 
-    if (!authResp.ok) {
-        throw new Error("Auth exchange failed (" + authResp.status + "): " + rawText);
-    }
+    // if (!authResp.ok) {
+    //     throw new Error("Auth exchange failed (" + authResp.status + "): " + rawText);
+    // }
 
-    let authData;
-    try { authData = JSON.parse(rawText); }
-    catch (e) { throw new Error("Auth response not JSON: " + rawText); }
+    // let authData;
+    // try { authData = JSON.parse(rawText); }
+    // catch (e) { throw new Error("Auth response not JSON: " + rawText); }
 
-    const sessionToken = authData.token
-        || authData.access_token
-        || authData.accessToken
-        || authData.sessionToken;
+    // const sessionToken = authData.token
+    //     || authData.access_token
+    //     || authData.accessToken
+    //     || authData.sessionToken;
 
-    if (!sessionToken) {
-        throw new Error("No token in auth response. Got keys: " + Object.keys(authData).join(", "));
-    }
+    // if (!sessionToken) {
+    //     throw new Error("No token in auth response. Got keys: " + Object.keys(authData).join(", "));
+    // }
 
-    console.log("SmartBlue session token acquired", sessionToken);
+    // console.log("SmartBlue session token acquired", sessionToken);
     // return sessionToken;
     return "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwMTk4N2Q5NS0xZTJmLTNmMDYtOTkzMC1mNjM0NWM1ODJmMGMiLCJlbWFpbCI6Imxhdi5zaW5naEBzbWFydGJsdWUuYWkiLCJuYW1lIjoiTGF2IFNpbmdoIiwiYXV0aF9wcm92aWRlciI6Ikdvb2dsZUF1dGhQcm92aWRlciIsInByb3ZpZGVyX3NpZCI6ImE1ZjdlNjgzMDUzNjU3NzNiNmZhZjUxNjgyYzQ2MDQ2YTk0NDE2YmMiLCJyb2xlIjoicmVnaXN0ZXJlZCIsImFjY2Vzc19yb2xlcyI6WyJhZG1pbjEwMDAiXSwiZXhwaXJlcyI6MTc3OTA4NzAyOCwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0ttOXNXeXVkbTJoVEQ3NU9tS0tPUHcza25DYi03SVUzOU1UTGNLUDhncFFsUkpyUT1zOTYtYyIsImlzcyI6ImJsdWUtYXV0aG56IiwiYXVkIjoiYmx1ZS11aSIsImlhdCI6MTc3ODQ4MjIyOCwiZXhwIjoxNzc5MDg3MDI4fQ.ePSo93GgODORijSRjvJ1texvGY7BzCG_KHIw7fL63lE"
 }
