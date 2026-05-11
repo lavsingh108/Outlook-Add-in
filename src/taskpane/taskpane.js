@@ -178,7 +178,7 @@ async function handleBundleUpload() {
 
         const uploadData = await uploadResp.json();
         currentConversationId = uploadData.conversation_id;
-        currentDocumentId = uploadData.document_id;
+        currentDocumentId = uploadData.doc_id;
         console.log("Primary document uploaded:", uploadData);
 
         // ── Upload supporting documents ───────────────────────────
