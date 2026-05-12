@@ -1,5 +1,4 @@
 // ── Proxy base URL ────────────────────────────────────────────────
-// Change this to wherever you deploy the proxy server.
 const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";
 
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
@@ -19,10 +18,7 @@ const msalConfig = {
         authority: "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
         redirectUri: window.location.href.split("?")[0]
     },
-    cache: {
-        cacheLocation: "sessionStorage",
-        storeAuthStateInCookie: false
-    }
+    cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false }
 };
 
 let _msal = null;
@@ -31,258 +27,394 @@ function getMsal() {
     return _msal;
 }
 
-// Cache the SmartBlue session token for the lifetime of the taskpane session.
-// Avoids re-authenticating on every upload/chat call.
+// ── State ─────────────────────────────────────────────────────────
 let _cachedSmartBlueToken = null;
 let currentConversationId = null;
+let currentDocumentId     = null;
 
-// ── Entry Point - Office Ready ────────────────────────────────────
+// ── Entry Point ───────────────────────────────────────────────────
 Office.onReady((info) => {
-    if (info.host === Office.HostType.Outlook) {
-        init();
-    }
+    if (info.host === Office.HostType.Outlook) init();
 });
 
 function init() {
     loadAttachments();
     document.getElementById("btn-upload-bundle").onclick = handleBundleUpload;
-    document.getElementById("btn-send").onclick = sendChatMessage;
-    document.getElementById("btn-back").onclick = switchToAttachments;
-    document.getElementById("user-input").addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            sendChatMessage();
-        }
+    document.getElementById("btn-send").onclick          = sendChatMessage;
+    document.getElementById("btn-back").onclick          = switchToAttachments;
+    document.getElementById("chk-bulk").onchange         = onToggleMode;
+    document.getElementById("user-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
     });
 }
 
-// ── Load attachments ──────────────────────────────────────────────
+// ── Mode toggle ───────────────────────────────────────────────────
+function isBulkMode() { return document.getElementById("chk-bulk").checked; }
+
+function onToggleMode() {
+    const bulk = isBulkMode();
+    document.getElementById("lbl-bundle").classList.toggle("active", bulk);
+    document.getElementById("lbl-individual").classList.toggle("active", !bulk);
+    document.getElementById("bundle-footer").classList.toggle("hidden", !bulk);
+    loadAttachments();
+}
+
+// ── Load & render attachments ─────────────────────────────────────
 function loadAttachments() {
-    const item = Office.context.mailbox.item;
-    const attachments = item.attachments;
-    const listDiv = document.getElementById("attachment-list");
+    const attachments = Office.context.mailbox.item.attachments;
+    const listDiv     = document.getElementById("attachment-list");
 
     if (!attachments || attachments.length === 0) {
-        listDiv.innerHTML = "<p style='color:#888;font-size:13px;'>No attachments found in this email.</p>";
+        listDiv.innerHTML = "<p style='color:#888;font-size:13px;padding:4px 0'>No attachments found.</p>";
         document.getElementById("btn-upload-bundle").disabled = true;
         return;
     }
 
+    document.getElementById("btn-upload-bundle").disabled = false;
     listDiv.innerHTML = "";
+
+    if (isBulkMode()) renderBundleList(attachments, listDiv);
+    else              renderIndividualList(attachments, listDiv);
+}
+
+// Bundle mode: radio (primary) + checkbox (secondary)
+function renderBundleList(attachments, container) {
+    attachments.forEach((att, index) => {
+        const isPrimary = index === 0;
+        const div = document.createElement("div");
+        div.className = "att-item" + (isPrimary ? " is-primary" : "");
+        div.dataset.index = index;
+
+        div.innerHTML = `
+            <div class="att-bundle-row">
+                <div class="att-radio-col">
+                    <input type="radio" name="primaryIndex" value="${index}"
+                           id="radio-${index}" ${isPrimary ? "checked" : ""}/>
+                    <label class="radio-label" for="radio-${index}">Primary</label>
+                </div>
+                <div class="att-info">
+                    <div class="att-name" title="${att.name}">${att.name}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
+                </div>
+                <div class="att-secondary-col">
+                    <input type="checkbox" name="secondaryIndex" value="${index}"
+                           id="chk-sec-${index}" ${isPrimary ? "" : "checked"}
+                           ${isPrimary ? "disabled" : ""}/>
+                    <label class="sec-label" for="chk-sec-${index}">Include</label>
+                </div>
+            </div>`;
+
+        container.appendChild(div);
+    });
+
+    // When primary radio changes: highlight the new primary row,
+    // uncheck + disable secondary on it, re-enable all others
+    container.querySelectorAll("input[name='primaryIndex']").forEach(radio => {
+        radio.addEventListener("change", () => updateBundleSelection(container));
+    });
+}
+
+function updateBundleSelection(container) {
+    const primaryVal = container.querySelector("input[name='primaryIndex']:checked")?.value;
+    container.querySelectorAll(".att-item").forEach(item => {
+        const idx      = item.dataset.index;
+        const isPrimary = idx === primaryVal;
+        const secChk   = item.querySelector("input[name='secondaryIndex']");
+
+        item.classList.toggle("is-primary", isPrimary);
+
+        if (isPrimary) {
+            secChk.checked  = false;
+            secChk.disabled = true;
+        } else {
+            secChk.disabled = false;
+            // Re-check it if it was forcibly unchecked when it became primary before
+            if (!secChk.dataset.userUnchecked) secChk.checked = true;
+        }
+    });
+}
+
+// Track manual unchecks so we don't re-check them on radio change
+document.addEventListener("change", (e) => {
+    if (e.target.name === "secondaryIndex") {
+        e.target.dataset.userUnchecked = e.target.checked ? "" : "1";
+    }
+});
+
+// Individual mode: each row has its own Upload button
+function renderIndividualList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
         div.innerHTML = `
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="radio" name="primaryIndex" value="${index}" ${index === 0 ? "checked" : ""}/>
-                <span class="att-name">${att.name}</span>
-                <span class="att-size">(${formatBytes(att.size)})</span>
-            </label>`;
-        listDiv.appendChild(div);
+            <div class="att-individual-row">
+                <div class="att-info">
+                    <div class="att-name" title="${att.name}">${att.name}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
+                </div>
+                <button class="btn-upload-single" data-index="${index}">Upload</button>
+            </div>`;
+        container.appendChild(div);
+    });
+
+    container.querySelectorAll(".btn-upload-single").forEach(btn => {
+        btn.onclick = () => handleSingleUpload(parseInt(btn.dataset.index));
     });
 }
 
-// ── Auth: MSAL popup → proxy → SmartBlue session token ───────────
+// ── Auth ──────────────────────────────────────────────────────────
 async function getAuthToken() {
-    // Return cached token if we already have one for this session
     if (_cachedSmartBlueToken) return _cachedSmartBlueToken;
 
     const msalInstance = getMsal();
     let idToken = null;
 
-    // 1. Try silent first (no popup if session is cached)
     const accounts = msalInstance.getAllAccounts();
     if (accounts.length > 0) {
         try {
-            const silent = await msalInstance.acquireTokenSilent({
-                scopes:  SCOPES,
-                account: accounts[0]
-            });
+            const silent = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: accounts[0] });
             idToken = silent.idToken;
-            console.log("MSAL silent token acquired for:", accounts[0].username);
-        } catch (silentErr) {
-            console.warn("Silent failed, falling back to popup:", silentErr.message);
-        }
+        } catch (e) { console.warn("Silent failed:", e.message); }
     }
 
-    // 2. Popup login if no cached session
     if (!idToken) {
         try {
-            const popup = await msalInstance.loginPopup({
-                scopes: SCOPES,
-                prompt: "select_account"
-            });
+            const popup = await msalInstance.loginPopup({ scopes: SCOPES, prompt: "select_account" });
             idToken = popup.idToken;
-            console.log("MSAL popup login OK:", popup.account.username);
-        } catch (popupErr) {
-            console.error("MSAL popup error:", popupErr);
-            throw new Error("Sign-in failed: " + (popupErr.message || popupErr.errorCode));
+        } catch (e) {
+            throw new Error("Sign-in failed: " + (e.message || e.errorCode));
         }
     }
 
-    // 3. Exchange Microsoft ID token for SmartBlue session token via proxy
-    console.log("Exchanging Microsoft ID token via proxy...");
     const authResp = await fetch(AUTH_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
     });
+    if (!authResp.ok) throw new Error("Auth failed (" + authResp.status + "): " + await authResp.text());
 
-    if (!authResp.ok) {
-        const err = await authResp.text();
-        throw new Error("Auth exchange failed (" + authResp.status + "): " + err);
-    }
+    const { token } = await authResp.json();
+    if (!token) throw new Error("No token returned from auth proxy");
 
-    const authData = await authResp.json();
-
-    if (!authData.token) {
-        throw new Error("Proxy returned no token. Response: " + JSON.stringify(authData));
-    }
-
-    console.log("SmartBlue session token acquired via proxy.");
-    _cachedSmartBlueToken = authData.token;
-    return _cachedSmartBlueToken;
+    _cachedSmartBlueToken = token;
+    return token;
 }
 
-// ── Upload pipeline ───────────────────────────────────────────────
+// ── Bundle upload ─────────────────────────────────────────────────
 async function handleBundleUpload() {
-    const item = Office.context.mailbox.item;
-    const selected = document.querySelector("input[name='primaryIndex']:checked");
-    if (!selected) { showStatus("Please select a primary document."); return; }
+    const attachments  = Office.context.mailbox.item.attachments;
+    const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
+    if (!primaryRadio) { showStatus("Please select a primary document."); return; }
 
-    const primaryIndex = parseInt(selected.value);
-    const primaryAtt   = item.attachments[primaryIndex];
+    const primaryIndex = parseInt(primaryRadio.value);
+    const primaryAtt   = attachments[primaryIndex];
 
-    showStatus("Signing in...");
+    // Collect checked secondary indices (excluding primary)
+    const secondaryIndices = Array.from(
+        document.querySelectorAll("input[name='secondaryIndex']:checked")
+    ).map(c => parseInt(c.value)).filter(i => i !== primaryIndex);
+
+    showStatus("Signing in…");
     document.getElementById("btn-upload-bundle").disabled = true;
 
     try {
         const token = await getAuthToken();
 
-        // ── Upload primary document ───────────────────────────────
-        showStatus("Uploading primary document...");
-        const primaryBlob = await getAttachmentBlob(primaryAtt.id, primaryAtt.name);
-        const formData = new FormData();
-        formData.append("document", primaryBlob, primaryAtt.name);
+        showStatus("Uploading primary document…");
+        const { conversationId, documentId } = await uploadPrimary(primaryAtt, token);
 
-        const uploadResp = await fetch(UPLOAD_URL, {
-            method:  "POST",
-            headers: { Authorization: "Bearer " + token },
-            body:    formData,
-        });
-
-        if (!uploadResp.ok) {
-            const detail = await uploadResp.text();
-            throw new Error("Upload failed (" + uploadResp.status + "): " + detail);
-        }
-
-        const uploadData = await uploadResp.json();
-        currentConversationId = uploadData.conversation_id;
-        currentDocumentId = uploadData.doc_id;
-        console.log("Primary document uploaded:", uploadData);
-
-        // ── Upload supporting documents ───────────────────────────
-        const supporting = item.attachments.filter((_, i) => i !== primaryIndex);
-        if (supporting.length > 0) {
-            showStatus(`Uploading ${supporting.length} supporting document(s)...`);
-            for (const att of supporting) {
-                const blob = await getAttachmentBlob(att.id, att.name);
-                const sf = new FormData();
-                sf.append("document", blob, att.name);
-                const bundleResp = await fetch(
-                    `${BUNDLE_ADD_URL}?conversation_id=${encodeURIComponent(currentConversationId)}`,
-                    {
-                        method:  "POST",
-                        headers: { Authorization: "Bearer " + token },
-                        body:    sf,
-                    }
-                );
-                if (!bundleResp.ok) {
-                    console.warn("Bundle add failed for:", att.name, await bundleResp.text());
-                }
+        if (secondaryIndices.length > 0) {
+            showStatus(`Uploading ${secondaryIndices.length} secondary document(s)…`);
+            for (const idx of secondaryIndices) {
+                await uploadSupporting(attachments[idx], conversationId, token);
             }
         }
 
-        console.log("Payload", currentConversationId, currentDocumentId);
-
-        const welcomeResp = await fetch(WELCOME_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: "Bearer " + token
-            },
-            body: JSON.stringify({
-                conversationId: currentConversationId,
-                documentId: currentDocumentId
-            })
-        });
-
-        const welcomeData = await welcomeResp.json();
-
-        appendMessage(
-            "ai",
-            welcomeData.answer ||
-            welcomeData.response ||
-            "No response received."
-        );
-
-        switchToChat();
+        await enterChat(conversationId, documentId, token);
 
     } catch (err) {
-        console.error("Upload error:", err);
+        console.error("Bundle upload error:", err);
         showStatus("Error: " + err.message);
-        // Clear cached token in case it expired mid-session
         _cachedSmartBlueToken = null;
         document.getElementById("btn-upload-bundle").disabled = false;
     }
 }
 
-// ── MIME type lookup by file extension ───────────────────────────
-// Outlook's getAttachmentContentAsync returns raw bytes with no type
-// metadata, so we derive the MIME type from the filename ourselves.
-function getMimeType(filename) {
-    const ext = (filename || "").split(".").pop().toLowerCase();
-    const MIME_MAP = {
-        // Documents
-        pdf:  "application/pdf",
-        doc:  "application/msword",
-        docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        // Spreadsheets
-        xls:  "application/vnd.ms-excel",
-        xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        csv:  "text/csv",
-        // Presentations
-        ppt:  "application/vnd.ms-powerpoint",
-        pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        // Text
-        txt:  "text/plain",
-        rtf:  "application/rtf",
-        // Images
-        png:  "image/png",
-        jpg:  "image/jpeg",
-        jpeg: "image/jpeg",
-        gif:  "image/gif",
-        webp: "image/webp",
-        // Archives
-        zip:  "application/zip",
-        // Fallback — SmartBlue should accept this for anything not listed
-        "":   "application/octet-stream",
-    };
-    return MIME_MAP[ext] || "application/octet-stream";
+// ── Single upload ─────────────────────────────────────────────────
+async function handleSingleUpload(index) {
+    const att = Office.context.mailbox.item.attachments[index];
+    document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = true);
+    showStatus("Uploading " + att.name + "…");
+
+    try {
+        const token = await getAuthToken();
+        const { conversationId, documentId } = await uploadPrimary(att, token);
+        await enterChat(conversationId, documentId, token);
+    } catch (err) {
+        console.error("Single upload error:", err);
+        showStatus("Error: " + err.message);
+        _cachedSmartBlueToken = null;
+        document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
+    }
 }
 
-// ── Get attachment as Blob ────────────────────────────────────────
-// filename is required so we can set the correct MIME type on the Blob.
+// ── Upload helpers ────────────────────────────────────────────────
+async function uploadPrimary(att, token) {
+    const blob = await getAttachmentBlob(att.id, att.name);
+    const form = new FormData();
+    form.append("document", blob, att.name);
+
+    const resp = await fetch(UPLOAD_URL, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: form,
+    });
+    if (!resp.ok) throw new Error("Upload failed (" + resp.status + "): " + await resp.text());
+
+    const data         = await resp.json();
+    const conversationId = data.conversation_id || data.conversationId;
+    const documentId     = data.doc_id || data.documentId || data.id || null;
+
+    if (!conversationId) throw new Error("No conversation_id returned by upload");
+    console.log("Uploaded primary. conversation_id:", conversationId, "doc_id:", documentId);
+    return { conversationId, documentId };
+}
+
+async function uploadSupporting(att, conversationId, token) {
+    const blob = await getAttachmentBlob(att.id, att.name);
+    const form = new FormData();
+    form.append("document", blob, att.name);
+
+    const resp = await fetch(`${BUNDLE_ADD_URL}?conversation_id=${encodeURIComponent(conversationId)}`, {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: form,
+    });
+    if (!resp.ok) console.warn("Supporting upload failed for:", att.name, await resp.text());
+}
+
+// ── Welcome API → enter chat ──────────────────────────────────────
+async function enterChat(conversationId, documentId, token) {
+    // ── CRITICAL: reset state for the new document ────────────────
+    currentConversationId = conversationId;
+    currentDocumentId     = documentId;
+
+    switchToChat();  // clears chat history, hides suggestions
+    showStatus("Loading…");
+
+    try {
+        const resp = await fetch(WELCOME_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ conversationId, documentId }),
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            const msg  = data.answer || data.response || data.message || "How can I help you today?";
+            const tags = Array.isArray(data.tags) ? data.tags : [];
+            appendMessage("ai", msg);
+            if (tags.length > 0) renderSuggestions(tags);
+        } else {
+            appendMessage("ai", "Document uploaded. How can I help you?");
+        }
+    } catch (err) {
+        console.warn("Welcome API error:", err.message);
+        appendMessage("ai", "Document uploaded. How can I help you?");
+    }
+
+    showStatus("");
+}
+
+// ── Suggestion chips ──────────────────────────────────────────────
+function renderSuggestions(tags) {
+    const box = document.getElementById("suggestions");
+    box.innerHTML = "";
+    tags.forEach(tag => {
+        const q = typeof tag === "string" ? tag : (tag["next-question"] || tag.question || "");
+        if (!q.trim()) return;
+        const chip = document.createElement("button");
+        chip.className = "chip";
+        chip.textContent = q;
+        chip.onclick = () => {
+            hideSuggestions();
+            document.getElementById("user-input").value = q;
+            sendChatMessage();
+        };
+        box.appendChild(chip);
+    });
+    box.classList.remove("hidden");
+}
+
+function hideSuggestions() {
+    const box = document.getElementById("suggestions");
+    box.classList.add("hidden");
+    box.innerHTML = "";
+}
+
+// ── Chat ──────────────────────────────────────────────────────────
+async function sendChatMessage() {
+    const input = document.getElementById("user-input");
+    const text  = input.value.trim();
+    if (!text) return;
+
+    hideSuggestions();
+    appendMessage("user", text);
+    input.value = "";
+    document.getElementById("btn-send").disabled = true;
+
+    try {
+        const token = await getAuthToken();
+        const resp  = await fetch(ASK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+            body: JSON.stringify({ conversationId: currentConversationId, text, isMobile: false }),
+        });
+
+        if (!resp.ok) throw new Error("Ask failed (" + resp.status + "): " + await resp.text());
+
+        const data = await resp.json();
+        appendMessage("ai", data.answer || data.response || "No response received.");
+
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        if (tags.length > 0) renderSuggestions(tags);
+
+    } catch (err) {
+        console.error("Chat error:", err);
+        appendMessage("ai", "Error: " + err.message);
+        _cachedSmartBlueToken = null;
+    } finally {
+        document.getElementById("btn-send").disabled = false;
+    }
+}
+
+// ── MIME type ─────────────────────────────────────────────────────
+function getMimeType(filename) {
+    const ext = (filename || "").split(".").pop().toLowerCase();
+    const MAP = {
+        pdf: "application/pdf",
+        doc: "application/msword",
+        docx:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        xls: "application/vnd.ms-excel",
+        xlsx:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        csv: "text/csv",
+        ppt: "application/vnd.ms-powerpoint",
+        pptx:"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        txt: "text/plain", rtf: "application/rtf",
+        png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+        gif: "image/gif", webp: "image/webp", zip: "application/zip",
+    };
+    return MAP[ext] || "application/octet-stream";
+}
+
 function getAttachmentBlob(attachmentId, filename) {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
             if (result.status === Office.AsyncResultStatus.Succeeded) {
-                const binary  = atob(result.value.content);
-                const bytes   = new Uint8Array(binary.length);
+                const binary = atob(result.value.content);
+                const bytes  = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                const mimeType = getMimeType(filename);
-                console.log(`Attachment "${filename}" → MIME type: ${mimeType}`);
-                resolve(new Blob([bytes], { type: mimeType }));
+                resolve(new Blob([bytes], { type: getMimeType(filename) }));
             } else {
                 reject(new Error(result.error.message));
             }
@@ -290,81 +422,19 @@ function getAttachmentBlob(attachmentId, filename) {
     });
 }
 
-// ── Chat ──────────────────────────────────────────────────────────
-async function sendChatMessage() {
-    const input = document.getElementById("user-input");
-    const text = input.value.trim();
-    if (!text) return;
-
-    appendMessage("user", text);
-    input.value = "";
-    document.getElementById("btn-send").disabled = true;
-
-    try {
-        const token = await getAuthToken();
-        const resp = await fetch(ASK_URL, {
-            method:  "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization:  "Bearer " + token,
-            },
-            body: JSON.stringify({
-                conversationId: currentConversationId,
-                text,
-                isMobile: false,
-            }),
-        });
-
-        if (!resp.ok) {
-            const detail = await resp.text();
-            throw new Error("Ask failed (" + resp.status + "): " + detail);
-        }
-
-        const data = await resp.json();
-        appendMessage("ai", data.answer || data.response || "No response received.");
-    } catch (err) {
-        console.error("Chat error:", err);
-        appendMessage("ai", "Error: " + err.message);
-        // Clear cached token in case it expired
-        _cachedSmartBlueToken = null;
-    } finally {
-        document.getElementById("btn-send").disabled = false;
-    }
-}
-
 // ── Response formatter ────────────────────────────────────────────
-/**
- * Converts the SmartBlue API response string to clean HTML.
- *
- * Handles:
- *  1. <blueEmbed-doc-page>UUID:file.pdf:N</blueEmbed-doc-page>
- *     → <span class="page-ref">pg N</span>
- *  2. **bold** → <strong>bold</strong>
- *  3. Lines starting with "* " or "● " → <ul><li> list items
- *  4. Remaining non-empty lines → <p> paragraphs
- */
 function formatResponse(raw) {
-    // 1. Replace citation tags — extract only the page number
     let text = raw.replace(
         /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
         '<span class="page-ref">pg $1</span>'
     );
-
-    // 2. Bold
     text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
-    // 3. Walk lines and build HTML
     const lines = text.split(/\n/);
-    let html = "";
-    let inList = false;
-
-    for (const raw of lines) {
-        const line = raw.trim();
-        if (!line) {
-            // Blank line closes an open list
-            if (inList) { html += "</ul>"; inList = false; }
-            continue;
-        }
+    let html = "", inList = false;
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line) { if (inList) { html += "</ul>"; inList = false; } continue; }
         if (/^[*●•]\s+/.test(line)) {
             if (!inList) { html += '<ul class="ai-list">'; inList = true; }
             html += "<li>" + line.replace(/^[*●•]\s+/, "") + "</li>";
@@ -374,7 +444,6 @@ function formatResponse(raw) {
         }
     }
     if (inList) html += "</ul>";
-
     return html;
 }
 
@@ -382,21 +451,16 @@ function formatResponse(raw) {
 function appendMessage(role, text) {
     const hist = document.getElementById("chat-history");
     const div  = document.createElement("div");
-
     if (role === "user") {
         div.className = "msg-user";
-        // User messages: plain text, escape HTML
         const p = document.createElement("p");
         p.textContent = text;
         div.appendChild(p);
     } else {
         div.className = "msg-ai";
-        // AI messages: full markdown + citation rendering
         div.innerHTML = formatResponse(text);
     }
-
     hist.appendChild(div);
-    // Scroll to the new message
     hist.scrollTop = hist.scrollHeight;
 }
 
@@ -404,6 +468,9 @@ function switchToChat() {
     document.getElementById("view-attachments").classList.add("hidden");
     document.getElementById("view-chat").classList.remove("hidden");
     document.getElementById("btn-back").classList.remove("hidden");
+    // Clear any previous chat session
+    document.getElementById("chat-history").innerHTML = "";
+    hideSuggestions();
     showStatus("");
 }
 
@@ -411,8 +478,13 @@ function switchToAttachments() {
     document.getElementById("view-chat").classList.add("hidden");
     document.getElementById("view-attachments").classList.remove("hidden");
     document.getElementById("btn-back").classList.add("hidden");
-    // Re-enable upload button and clear status in case of prior error
+    // Clear chat state so the next upload starts fresh
+    document.getElementById("chat-history").innerHTML = "";
+    hideSuggestions();
+    currentConversationId = null;
+    currentDocumentId     = null;
     document.getElementById("btn-upload-bundle").disabled = false;
+    loadAttachments();  // re-render so radio/checkbox state resets too
     showStatus("");
 }
 
@@ -420,6 +492,7 @@ function showStatus(msg) { document.getElementById("status-msg").innerText = msg
 
 function formatBytes(bytes) {
     if (!bytes) return "";
-    if (bytes < 1024) return bytes + " B";
-    return (bytes / 1024).toFixed(1) + " KB";
+    if (bytes < 1024)    return bytes + " B";
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / 1048576).toFixed(1) + " MB";
 }
