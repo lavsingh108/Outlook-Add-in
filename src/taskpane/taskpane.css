@@ -292,7 +292,7 @@ html, body {
 .chip {
     display: inline-flex; align-items: center;
     background: #E8F0FE; color: #1A73E8;
-    border: 1px solid #C5D8FB; border-radius: 16px;
+    border: 1px solid #C5D8FB; border-radius: 8px;
     padding: 4px 11px; font-size: 12px; font-weight: 500;
     cursor: pointer; transition: background .15s;
     text-align: left; line-height: 1.4;
@@ -328,3 +328,32 @@ html, body {
 .btn-send:hover    { background: #1565C0; }
 .btn-send:active   { transform: scale(.93); }
 .btn-send:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Typing indicator ────────────────────────────────────────────── */
+.msg-typing {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 16px 16px 16px 4px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+}
+
+.typing-dot {
+    width: 7px;
+    height: 7px;
+    background: #90CAF9;
+    border-radius: 50%;
+    animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0);    background: #90CAF9; }
+    30%            { transform: translateY(-5px); background: #1A73E8; }
+}

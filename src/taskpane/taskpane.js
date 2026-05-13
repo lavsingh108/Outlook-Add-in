@@ -301,6 +301,7 @@ async function enterChat(conversationId, documentId, token) {
 
     switchToChat();  // clears chat history, hides suggestions
     showStatus("Loading…");
+    showTypingIndicator();
 
     try {
         const resp = await fetch(WELCOME_URL, {
@@ -308,6 +309,8 @@ async function enterChat(conversationId, documentId, token) {
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
             body: JSON.stringify({ conversationId, documentId }),
         });
+
+        hideTypingIndicator();
 
         if (resp.ok) {
             const data = await resp.json();
@@ -320,6 +323,7 @@ async function enterChat(conversationId, documentId, token) {
         }
     } catch (err) {
         console.warn("Welcome API error:", err.message);
+        hideTypingIndicator();
         appendMessage("ai", "Document uploaded. How can I help you?");
     }
 
@@ -362,6 +366,7 @@ async function sendChatMessage() {
     appendMessage("user", text);
     input.value = "";
     document.getElementById("btn-send").disabled = true;
+    showTypingIndicator();
 
     try {
         const token = await getAuthToken();
@@ -371,6 +376,7 @@ async function sendChatMessage() {
             body: JSON.stringify({ conversationId: currentConversationId, text, isMobile: false }),
         });
 
+        hideTypingIndicator();
         if (!resp.ok) throw new Error("Ask failed (" + resp.status + "): " + await resp.text());
 
         const data = await resp.json();
@@ -381,6 +387,7 @@ async function sendChatMessage() {
 
     } catch (err) {
         console.error("Chat error:", err);
+        hideTypingIndicator();
         appendMessage("ai", "Error: " + err.message);
         _cachedSmartBlueToken = null;
     } finally {
@@ -448,6 +455,27 @@ function formatResponse(raw) {
 }
 
 // ── UI helpers ────────────────────────────────────────────────────
+// ── Typing indicator ──────────────────────────────────────────────
+function showTypingIndicator() {
+    const hist = document.getElementById("chat-history");
+    // Avoid duplicates
+    if (hist.querySelector(".msg-typing")) return;
+    const div = document.createElement("div");
+    div.className = "msg-typing";
+    div.id = "typing-indicator";
+    div.innerHTML = `
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>`;
+    hist.appendChild(div);
+    hist.scrollTop = hist.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const el = document.getElementById("typing-indicator");
+    if (el) el.remove();
+}
+
 function appendMessage(role, text) {
     const hist = document.getElementById("chat-history");
     const div  = document.createElement("div");
