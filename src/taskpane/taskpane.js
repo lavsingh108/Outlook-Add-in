@@ -83,7 +83,8 @@ function onToggleMode() {
 }
 
 function loadAttachments() {
-    const attachments = Office.context.mailbox.item.attachments;
+    // const attachments = Office.context.mailbox.item.attachments;
+    const attachments = Office.context.mailbox.item.getAttachmentsAsync();
     const listDiv     = document.getElementById("attachment-list");
 
     if (!attachments || attachments.length === 0) {
@@ -596,7 +597,7 @@ async function uploadSupporting(att, conversationId, token) {
 
 function getAttachmentBlob(attachmentId, filename) {
     return new Promise((resolve, reject) => {
-        Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
+        Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => { // getAttachmentsAsync is for compose mode; getAttachmentContentAsync works in both modes
             if (result.status === Office.AsyncResultStatus.Succeeded) {
                 const binary = atob(result.value.content);
                 const bytes  = new Uint8Array(binary.length);
