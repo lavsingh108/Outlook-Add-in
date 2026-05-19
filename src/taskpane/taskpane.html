@@ -24,12 +24,83 @@
                 <div class="header-title">Analyse Document</div>
                 <div class="header-sub">SmartBlue AI</div>
             </div>
+            <!-- Refresh — only visible in compose mode -->
+            <button id="btn-refresh" class="btn-refresh hidden" title="Refresh recipients &amp; attachments">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+            </button>
         </div>
 
-        <!-- Attachment view -->
-        <div id="view-attachments" class="view">
+        <!-- ══════════════════════════════════════════════════════════
+             COMPOSE VIEW
+             Reads To/CC recipients and attachments from the email
+             being composed. Refresh re-reads live state.
+             ══════════════════════════════════════════════════════════ -->
+        <div id="view-compose" class="view hidden">
 
-            <!-- Mode toggle -->
+            <!-- Recipients -->
+            <div class="compose-section">
+                <div class="compose-section-header">
+                    <span class="compose-section-title">Recipients</span>
+                    <span class="compose-badge" id="recipients-count"></span>
+                </div>
+                <div id="compose-recipients" class="compose-recipients-area">
+                    <div class="compose-loading">Reading recipients…</div>
+                </div>
+            </div>
+
+            <!-- Document (from email attachments) -->
+            <div class="compose-section compose-section-grow">
+                <div class="compose-section-header">
+                    <span class="compose-section-title">Document</span>
+                    <span class="compose-badge" id="attachments-count"></span>
+                </div>
+                <div id="compose-attachments" class="compose-att-list">
+                    <div class="compose-loading">Reading attachments…</div>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <div class="compose-footer">
+                <button id="btn-compose-upload" class="btn-primary" disabled>
+                    ⬆&nbsp; Upload &amp; Share
+                </button>
+            </div>
+
+            <div id="compose-status" class="status-msg"></div>
+
+            <!-- Result card — auto-shown after share URL is inserted -->
+            <div id="compose-result" class="result-card hidden">
+                <div class="result-top">
+                    <svg class="result-check" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span class="result-inserted-text">Link inserted into email body</span>
+                </div>
+                <div class="result-label">Share Link</div>
+                <div class="result-link-row">
+                    <div class="result-link" id="result-link-text"></div>
+                    <button class="btn-copy" id="btn-copy-link" title="Copy link">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+        </div><!-- /view-compose -->
+
+        <!-- ══════════════════════════════════════════════════════════
+             READ VIEW
+             ══════════════════════════════════════════════════════════ -->
+        <div id="view-attachments" class="view">
             <div class="mode-bar">
                 <span class="mode-label" id="lbl-individual">Individual</span>
                 <label class="toggle-switch">
@@ -38,19 +109,16 @@
                 </label>
                 <span class="mode-label active" id="lbl-bundle">Bundle</span>
             </div>
-
-            <!-- Attachment list -->
             <div id="attachment-list" class="attachment-list">Loading attachments…</div>
-
-            <!-- Bundle footer -->
             <div class="footer" id="bundle-footer">
                 <button id="btn-upload-bundle" class="btn-primary">⬆ Upload &amp; Analyse</button>
             </div>
-
             <div id="status-msg" class="status-msg"></div>
         </div>
 
-        <!-- Chat view -->
+        <!-- ══════════════════════════════════════════════════════════
+             CHAT VIEW
+             ══════════════════════════════════════════════════════════ -->
         <div id="view-chat" class="view hidden">
             <div id="chat-history" class="chat-history"></div>
             <div id="suggestions" class="suggestions hidden"></div>

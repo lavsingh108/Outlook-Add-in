@@ -357,3 +357,167 @@ html, body {
     0%, 60%, 100% { transform: translateY(0);    background: #90CAF9; }
     30%            { transform: translateY(-5px); background: #1A73E8; }
 }
+
+
+/* ════════════════════════════════════════════════════════════════
+   COMPOSE MODE
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Refresh button (in header) ──────────────────────────────────── */
+.btn-refresh {
+    margin-left: auto;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.15);
+    border: none; border-radius: 6px;
+    color: #fff; width: 28px; height: 28px;
+    cursor: pointer; transition: background .15s;
+}
+.btn-refresh:hover { background: rgba(255,255,255,.28); }
+.btn-refresh.spinning svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Compose view shell ──────────────────────────────────────────── */
+#view-compose {
+    flex: 1 1 0; display: flex; flex-direction: column;
+    overflow-y: auto; padding: 12px 14px; gap: 12px;
+    background: #f4f6f9;
+}
+
+.compose-section       { display: flex; flex-direction: column; gap: 8px; }
+.compose-section-grow  { flex: 1 1 auto; min-height: 0; }
+
+.compose-section-header { display: flex; align-items: center; gap: 6px; }
+
+.compose-section-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; color: #555;
+}
+
+.compose-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #0D47A1; color: #fff; border-radius: 9px;
+    font-size: 10px; font-weight: 700; line-height: 1;
+}
+.compose-badge:empty { display: none; }
+
+/* ── Loading / empty states ──────────────────────────────────────── */
+.compose-loading { font-size: 12px; color: #aaa; padding: 6px 0; }
+
+.compose-empty {
+    font-size: 12px; color: #999;
+    background: #fff; border: 1px dashed #dde2ea; border-radius: 10px;
+    padding: 14px 12px; line-height: 1.5; text-align: center;
+}
+
+/* ── Recipients area ─────────────────────────────────────────────── */
+.compose-recipients-area {
+    display: flex; flex-direction: column; gap: 6px;
+    background: #fff; border: 1px solid #dde2ea; border-radius: 10px;
+    padding: 10px 12px; min-height: 48px;
+}
+
+.recipient-row { display: flex; align-items: flex-start; gap: 8px; }
+
+.recipient-row-label {
+    font-size: 11px; font-weight: 700; color: #888;
+    padding-top: 3px; flex-shrink: 0; width: 22px;
+}
+
+.recipient-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.recipient-chip {
+    display: inline-block;
+    background: #e8eef8; color: #0D47A1; border-radius: 20px;
+    padding: 3px 9px; font-size: 12px; font-weight: 500;
+    max-width: 200px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; cursor: default;
+}
+
+/* ── Attachment radio cards ──────────────────────────────────────── */
+.compose-att-list { display: flex; flex-direction: column; gap: 6px; }
+
+.compose-att-item {
+    background: #fff; border: 1.5px solid #dde2ea;
+    border-radius: 10px; overflow: hidden;
+    transition: border-color .15s; cursor: pointer;
+}
+.compose-att-item:hover    { border-color: #90A4AE; }
+.compose-att-item.selected { border-color: #0D47A1; background: #f0f4ff; }
+
+.compose-att-item input[type="radio"] { display: none; }
+
+.compose-att-label {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; cursor: pointer; width: 100%;
+}
+
+.compose-att-icon {
+    width: 24px; height: 24px; flex-shrink: 0;
+    stroke: #90A4AE; transition: stroke .15s;
+}
+.compose-att-item.selected .compose-att-icon { stroke: #0D47A1; }
+
+.compose-att-meta { flex: 1 1 0; min-width: 0; }
+
+.compose-att-name {
+    font-size: 13px; font-weight: 600; color: #222;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.compose-att-size { font-size: 11px; color: #999; margin-top: 1px; }
+
+/* Checkmark on selected card */
+.compose-att-item.selected .compose-att-label::after {
+    content: "✓"; flex-shrink: 0;
+    color: #0D47A1; font-size: 14px; font-weight: 700; margin-left: auto;
+}
+
+/* ── Compose footer ──────────────────────────────────────────────── */
+.compose-footer { padding: 0; }
+
+/* ── Result card ─────────────────────────────────────────────────── */
+.result-card {
+    background: #fff; border: 1px solid #dde2ea; border-radius: 12px;
+    padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    animation: fadeInUp .25s ease;
+}
+.result-card.hidden { display: none !important; }
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.result-top {
+    display: flex; align-items: center; gap: 7px;
+    background: #e8f5e9; border-radius: 8px; padding: 8px 10px;
+}
+.result-check { width: 16px; height: 16px; flex-shrink: 0; stroke: #2e7d32; }
+.result-inserted-text { font-size: 12px; font-weight: 600; color: #2e7d32; }
+
+.result-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; color: #0D47A1;
+}
+
+.result-link-row {
+    display: flex; align-items: center; gap: 8px;
+    background: #f0f4ff; border: 1px solid #c5d5f7;
+    border-radius: 8px; padding: 8px 10px;
+}
+.result-link {
+    flex: 1 1 0; min-width: 0;
+    font-size: 12px; color: #1A237E;
+    word-break: break-all; line-height: 1.4;
+}
+
+.btn-copy {
+    flex-shrink: 0; background: none;
+    border: 1px solid #c5d5f7; border-radius: 6px;
+    padding: 4px 6px; cursor: pointer; color: #5C7CFA;
+    display: flex; align-items: center; transition: background .15s, border-color .15s;
+}
+.btn-copy svg  { width: 14px; height: 14px; }
+.btn-copy:hover  { background: #e3ecff; border-color: #0D47A1; color: #0D47A1; }
+.btn-copy.copied { background: #e8f5e9; border-color: #43a047; color: #2e7d32; }
