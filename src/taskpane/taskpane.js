@@ -130,7 +130,9 @@ function extractShareLinkFromBody() {
 //   ?conversationId=xxx&documentId=yyy
 function parseDocUrl(rawUrl) {
     try {
-        const url = rawUrl.replace(/[>)"'\s]+$/, "");
+        const url = rawUrl
+            .replace(/[>)"'\s]+$/, "")   // strip trailing junk
+            .replace(/&amp;/gi, "&");       // decode HTML entity — Outlook encodes & as &amp; in href attributes
         const u   = new URL(url);
         const sp  = u.searchParams;
 
