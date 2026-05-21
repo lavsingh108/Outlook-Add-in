@@ -7,7 +7,8 @@ const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
 const BUNDLE_ADD_URL = `${PROXY_BASE}/v1/document/bundle/add`;
 const SHARE_URL      = `${PROXY_BASE}/v1/document/share`;
 const WELCOME_URL    = `${PROXY_BASE}/v1/conversation/ask/welcome`;
-const ASK_URL        = `${PROXY_BASE}/v1/conversation/ask/question`;
+const ASK_URL         = `${PROXY_BASE}/v1/conversation/ask/question`;
+const CONVERSATION_URL = `${PROXY_BASE}/v1/conversation`;   // GET /{id} to fetch history
 
 // ── MSAL Config ────────────────────────────────────────────────────────────
 const AZURE_CLIENT_ID = "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7";
@@ -873,22 +874,41 @@ async function enterChat(conversationId, documentId, token) {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
 
-    showTypingIndicator();
-
     if (!documentId) {
-        hideTypingIndicator();
         console.error("enterChat called without documentId for conversationId:", conversationId);
         appendMessage("ai", "Cannot start chat: document ID is missing from the share link. Please re-share the document.");
         return;
     }
 
-    const welcomePayload = { conversationId, documentId };
+    showTypingIndicator();
 
     try {
+        // ── Step 1: fetch existing conversation history ───────────────────────
+        // If the assistant has already replied, welcome was already called —
+        // restore the messages instead of calling welcome again.
+        const histResp = await fetch(
+            `${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`,
+            { headers: { Authorization: "Bearer " + token } }
+        );
+
+        if (histResp.ok) {
+            const conv    = await histResp.json();
+            const msgs    = Array.isArray(conv.messages) ? conv.messages : [];
+            const hasAI   = msgs.some(m => m.sender === "assistant");
+
+            if (hasAI) {
+                // Conversation already started — restore history, skip welcome
+                hideTypingIndicator();
+                restoreConversationHistory(msgs);
+                return;
+            }
+        }
+
+        // ── Step 2: no prior AI messages — call welcome ───────────────────────
         const resp = await fetch(WELCOME_URL, {
             method:  "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:    JSON.stringify(welcomePayload),
+            body:    JSON.stringify({ conversationId, documentId }),
         });
 
         const rawText = await resp.text();
@@ -909,7 +929,6 @@ async function enterChat(conversationId, documentId, token) {
 
         console.log("Welcome response:", data);
 
-        // SmartBlue may return the message under various field names
         const welcomeMsg =
             data.answer       ||
             data.response     ||
@@ -932,9 +951,28 @@ async function enterChat(conversationId, documentId, token) {
 
     } catch (err) {
         hideTypingIndicator();
-        console.error("Welcome fetch error:", err);
-        appendMessage("ai", "Network error loading welcome message. You can still ask questions below.");
+        console.error("enterChat error:", err);
+        appendMessage("ai", "Network error. You can still ask questions below.");
     }
+}
+
+// Render all existing messages from a fetched conversation into the chat history.
+// Called when the user re-enters a conversation that was already started.
+function restoreConversationHistory(messages) {
+    messages.forEach(msg => {
+        const text = msg.text || "";
+        if (!text.trim()) return;
+        appendMessage(msg.sender === "assistant" ? "ai" : "user", text);
+    });
+
+    // Show suggestion chips from the last assistant message
+    const lastAI = [...messages].reverse().find(m => m.sender === "assistant");
+    if (lastAI && Array.isArray(lastAI.tags) && lastAI.tags.length) {
+        renderSuggestions(lastAI.tags);
+    }
+
+    const hist = document.getElementById("chat-history");
+    hist.scrollTop = hist.scrollHeight;
 }
 
 function renderSuggestions(tags) {
