@@ -887,7 +887,7 @@ async function enterChat(conversationId, documentId, token) {
         // If the assistant has already replied, welcome was already called —
         // restore the messages instead of calling welcome again.
         const histResp = await fetch(
-            `${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`,
+            `${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}&document_id=${encodeURIComponent(documentId)}`,
             { headers: { Authorization: "Bearer " + token } }
         );
 
