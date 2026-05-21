@@ -505,12 +505,21 @@ async function handleComposeBundleUpload() {
         if (!uploadResp.ok)
             throw new Error("Upload failed (" + uploadResp.status + "): " + await uploadResp.text());
 
-        const uploadData     = await uploadResp.json();
-        const conversationId = uploadData.conversation_id || uploadData.conversationId || "";
-        const docId          = uploadData.doc_id || uploadData.documentId || uploadData.id || "";
+        const uploadData = await uploadResp.json();
+        console.log("Upload response:", JSON.stringify(uploadData));
 
-        if (!conversationId && !docId)
-            throw new Error("No conversation ID or document ID returned by upload.");
+        const conversationId =
+            uploadData.conversation_id || uploadData.conversationId || "";
+        const docId =
+            uploadData.doc_id      ||
+            uploadData.document_id ||
+            uploadData.documentId  ||
+            uploadData.docId       ||
+            uploadData.doc         ||
+            uploadData.id          || "";
+
+        if (!conversationId) throw new Error("No conversation ID returned by upload.");
+        if (!docId)          throw new Error("No document ID returned by upload (keys: " + Object.keys(uploadData).join(", ") + ").");
 
         if (secondaryIndices.length > 0) {
             showComposeStatus("Uploading " + secondaryIndices.length + " supporting doc(s)\u2026");
@@ -559,12 +568,21 @@ async function handleComposeSingleUpload(index) {
         if (!uploadResp.ok)
             throw new Error("Upload failed (" + uploadResp.status + "): " + await uploadResp.text());
 
-        const uploadData     = await uploadResp.json();
-        const conversationId = uploadData.conversation_id || uploadData.conversationId || "";
-        const docId          = uploadData.doc_id || uploadData.documentId || uploadData.id || "";
+        const uploadData = await uploadResp.json();
+        console.log("Upload response:", JSON.stringify(uploadData));
 
-        if (!conversationId && !docId)
-            throw new Error("No document ID returned by upload.");
+        const conversationId =
+            uploadData.conversation_id || uploadData.conversationId || "";
+        const docId =
+            uploadData.doc_id      ||
+            uploadData.document_id ||
+            uploadData.documentId  ||
+            uploadData.docId       ||
+            uploadData.doc         ||
+            uploadData.id          || "";
+
+        if (!conversationId) throw new Error("No conversation ID returned by upload.");
+        if (!docId)          throw new Error("No document ID returned by upload (keys: " + Object.keys(uploadData).join(", ") + ").");
 
         showComposeStatus("Creating share link\u2026");
         const shareLink = await callShareApi(token, conversationId, docId);
@@ -770,11 +788,23 @@ async function uploadPrimary(att, token) {
     });
     if (!resp.ok) throw new Error("Upload failed (" + resp.status + "): " + await resp.text());
 
-    const data           = await resp.json();
-    const conversationId = data.conversation_id || data.conversationId;
-    const documentId     = data.doc_id || data.documentId || data.id || null;
+    const data = await resp.json();
+    console.log("Upload response:", JSON.stringify(data));
+
+    const conversationId =
+        data.conversation_id || data.conversationId || null;
+
+    // Try every known field name SmartBlue may use for the document ID
+    const documentId =
+        data.doc_id       ||
+        data.document_id  ||
+        data.documentId   ||
+        data.docId        ||
+        data.doc          ||
+        data.id           || null;
 
     if (!conversationId) throw new Error("No conversation_id returned by upload.");
+    if (!documentId)     throw new Error("No document ID returned by upload (keys: " + Object.keys(data).join(", ") + ").");
     return { conversationId, documentId };
 }
 
@@ -842,10 +872,14 @@ async function enterChat(conversationId, documentId, token) {
 
     showTypingIndicator();
 
-    // documentId is optional when opening from a share link —
-    // the conversation already exists so only conversationId is needed
-    const welcomePayload = { conversationId };
-    if (documentId) welcomePayload.documentId = documentId;
+    if (!documentId) {
+        hideTypingIndicator();
+        console.error("enterChat called without documentId for conversationId:", conversationId);
+        appendMessage("ai", "Cannot start chat: document ID is missing from the share link. Please re-share the document.");
+        return;
+    }
+
+    const welcomePayload = { conversationId, documentId };
 
     try {
         const resp = await fetch(WELCOME_URL, {
