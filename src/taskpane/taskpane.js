@@ -842,25 +842,61 @@ async function enterChat(conversationId, documentId, token) {
 
     showTypingIndicator();
 
+    // documentId is optional when opening from a share link —
+    // the conversation already exists so only conversationId is needed
+    const welcomePayload = { conversationId };
+    if (documentId) welcomePayload.documentId = documentId;
+
     try {
         const resp = await fetch(WELCOME_URL, {
-            method: "POST",
+            method:  "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:   JSON.stringify({ conversationId, documentId }),
+            body:    JSON.stringify(welcomePayload),
         });
+
+        const rawText = await resp.text();
         hideTypingIndicator();
 
-        if (resp.ok) {
-            const data = await resp.json();
-            appendMessage("ai", data.answer || data.response || data.message || "How can I help you today?");
-            const tags = Array.isArray(data.tags) ? data.tags : [];
-            if (tags.length) renderSuggestions(tags);
-        } else {
-            appendMessage("ai", "Document ready. How can I help you?");
+        if (!resp.ok) {
+            console.error("Welcome API failed:", resp.status, rawText);
+            appendMessage("ai", "Could not load welcome message (" + resp.status + "). You can still ask questions below.");
+            return;
         }
+
+        let data;
+        try { data = JSON.parse(rawText); } catch {
+            console.error("Welcome response not JSON:", rawText);
+            appendMessage("ai", "Hello! How can I help you with this document?");
+            return;
+        }
+
+        console.log("Welcome response:", data);
+
+        // SmartBlue may return the message under various field names
+        const welcomeMsg =
+            data.answer       ||
+            data.response     ||
+            data.message      ||
+            data.text         ||
+            data.content      ||
+            data.welcomeText  ||
+            data.welcome_text ||
+            (typeof data === "string" ? data : null);
+
+        if (welcomeMsg) {
+            appendMessage("ai", welcomeMsg);
+        } else {
+            console.warn("Welcome API returned no recognised text field. Keys:", Object.keys(data));
+            appendMessage("ai", "Hello! How can I help you with this document?");
+        }
+
+        const tags = Array.isArray(data.tags) ? data.tags : [];
+        if (tags.length) renderSuggestions(tags);
+
     } catch (err) {
         hideTypingIndicator();
-        appendMessage("ai", "Document ready. How can I help you?");
+        console.error("Welcome fetch error:", err);
+        appendMessage("ai", "Network error loading welcome message. You can still ask questions below.");
     }
 }
 
