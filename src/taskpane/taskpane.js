@@ -3,6 +3,7 @@ const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";
 
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
+const BUNDLE_ADD_URL = `${PROXY_BASE}/v1/document/bundle/add`;
 const SHARE_URL      = `${PROXY_BASE}/v1/document/share`;
 const WELCOME_URL    = `${PROXY_BASE}/v1/conversation/ask/welcome`;
 const ASK_URL        = `${PROXY_BASE}/v1/conversation/ask/question`;
@@ -43,11 +44,7 @@ function init() {
     const item = Office.context.mailbox.item;
     const isCompose = typeof item.subject?.setAsync === "function"
                    || typeof item.body?.setAsync    === "function";
-    if (isCompose) {
-        initCompose();
-    } else {
-        initRead();
-    }
+    if (isCompose) { initCompose(); } else { initRead(); }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -55,134 +52,278 @@ function init() {
 // ══════════════════════════════════════════════════════════════════════════
 
 function initRead() {
-    document.getElementById("header-title-text")?.remove();
     document.querySelector(".header-title").textContent = "View Document";
 
-    // Wire up chat controls
     document.getElementById("btn-send").onclick = sendChatMessage;
     document.getElementById("user-input").addEventListener("keydown", (e) => {
         if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
     });
+    document.getElementById("btn-back").onclick  = switchToReadView;
+    document.getElementById("btn-upload-bundle").onclick = handleReadBundleUpload;
+    document.getElementById("chk-bulk").onchange = onReadToggleMode;
 
-    // Show the read-init loading screen
     document.getElementById("view-read-init").classList.remove("hidden");
 
-    startReadMode();
+    extractShareLinkFromBody()
+        .then(shareInfo => {
+            document.getElementById("view-read-init").classList.add("hidden");
+            document.getElementById("view-read").classList.remove("hidden");
+
+            if (shareInfo && shareInfo.conversationId) {
+                renderShareSection(shareInfo);
+            }
+
+            loadReadAttachments();
+
+            const atts = Office.context.mailbox.item.attachments || [];
+            if (shareInfo && shareInfo.conversationId && atts.length > 0) {
+                document.getElementById("read-or-divider").classList.remove("hidden");
+            }
+        })
+        .catch(err => showReadInitError("Error reading email: " + err.message));
 }
 
-// ── Scan email body for a SmartBlue share URL, then open chat ─────────────
-async function startReadMode() {
-    setReadInitStatus("Looking for share link…");
-
-    let conversationId = null;
-    let docId          = null;
-
-    try {
-        ({ conversationId, docId } = await extractShareLinkFromBody());
-    } catch (err) {
-        showReadInitError("Could not read email body: " + err.message);
-        return;
-    }
-
-    if (!conversationId) {
-        showReadInitError("No SmartBlue share link found in this email.");
-        return;
-    }
-
-    setReadInitStatus("Authenticating…");
-
-    try {
-        const token = await getAuthToken();
-        await enterChat(conversationId, docId, token);
-    } catch (err) {
-        console.error("Read mode init error:", err);
-        showReadInitError("Error: " + err.message);
-        _cachedSmartBlueToken = null;
-    }
-}
-
-// ── Read the email body and return the first SmartBlue share link ──────────
+// ── Parse email body for the first document URL ────────────────────────────
+// Inserted URL format: ${PROXY_BASE}/conversation?conversation-id=X&doc-id=Y
 function extractShareLinkFromBody() {
     return new Promise((resolve, reject) => {
-        Office.context.mailbox.item.body.getAsync(
-            Office.CoercionType.Html,
-            (result) => {
-                if (result.status !== Office.AsyncResultStatus.Succeeded) {
-                    reject(new Error(result.error?.message || "Body read failed"));
+        Office.context.mailbox.item.body.getAsync(Office.CoercionType.Html, (result) => {
+            if (result.status !== Office.AsyncResultStatus.Succeeded) {
+                reject(new Error(result.error?.message || "Body read failed"));
+                return;
+            }
+
+            const html = result.value || "";
+
+            // 1. Anchor hrefs with visible text (for display name)
+            const anchorRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+            let m;
+            while ((m = anchorRe.exec(html)) !== null) {
+                const href     = m[1];
+                const linkText = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+                const parsed   = parseDocUrl(href);
+                if (parsed.conversationId) {
+                    resolve({ ...parsed, linkText: linkText || href });
                     return;
                 }
-
-                const html = result.value || "";
-
-                // 1. Extract all href values
-                const hrefRe = /href=["']([^"']+)["']/gi;
-                let m;
-                while ((m = hrefRe.exec(html)) !== null) {
-                    const parsed = parseShareUrl(m[1]);
-                    if (parsed.conversationId) { resolve(parsed); return; }
-                }
-
-                // 2. Fallback: scan all bare URLs in text/HTML
-                const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
-                while ((m = urlRe.exec(html)) !== null) {
-                    const parsed = parseShareUrl(m[0]);
-                    if (parsed.conversationId) { resolve(parsed); return; }
-                }
-
-                resolve({ conversationId: null, docId: null });
             }
-        );
+
+            // 2. Fallback: bare URLs
+            const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
+            while ((m = urlRe.exec(html)) !== null) {
+                const parsed = parseDocUrl(m[0]);
+                if (parsed.conversationId) {
+                    resolve({ ...parsed, linkText: null });
+                    return;
+                }
+            }
+
+            resolve({ conversationId: null, docId: null, linkText: null });
+        });
     });
 }
 
-// ── Extract conversation_id and doc_id from a share URL ───────────────────
-// Supports query-param formats:
+// Parses URLs of the form:
+//   ?conversation-id=xxx&doc-id=yyy   (inserted by this add-in)
 //   ?conversation_id=xxx&doc_id=yyy
 //   ?conversationId=xxx&documentId=yyy
-//   ?cid=xxx&did=yyy
-// And path formats:
-//   /view/{conversationId}/{docId}
-//   /share/{conversationId}
-function parseShareUrl(rawUrl) {
+function parseDocUrl(rawUrl) {
     try {
-        // Strip trailing punctuation that may have been captured
         const url = rawUrl.replace(/[>)"'\s]+$/, "");
         const u   = new URL(url);
         const sp  = u.searchParams;
 
         const conversationId =
+            sp.get("conversation-id") ||   // hyphenated  (proxy URL format)
             sp.get("conversation_id") ||
             sp.get("conversationId")  ||
             sp.get("cid")             || null;
 
         const docId =
-            sp.get("doc_id")      ||
-            sp.get("documentId")  ||
-            sp.get("did")         || null;
+            sp.get("doc-id")     ||         // hyphenated  (proxy URL format)
+            sp.get("doc_id")     ||
+            sp.get("documentId") ||
+            sp.get("did")        || null;
 
-        if (conversationId) return { conversationId, docId };
+        if (conversationId) return { conversationId, docId, shareUrl: url };
 
-        // Path-based: /…/{conversationId}/{docId} or /…/{conversationId}
+        // Path-based fallback
         const segments = u.pathname.split("/").filter(Boolean);
-        if (segments.length >= 2) {
-            return {
-                conversationId: segments[segments.length - 2],
-                docId:          segments[segments.length - 1]
-            };
-        }
-        if (segments.length === 1) {
-            return { conversationId: segments[0], docId: null };
-        }
-    } catch (_) { /* not a valid URL */ }
-
-    return { conversationId: null, docId: null };
+        if (segments.length >= 2)
+            return { conversationId: segments[segments.length - 2], docId: segments[segments.length - 1], shareUrl: url };
+        if (segments.length === 1)
+            return { conversationId: segments[0], docId: null, shareUrl: url };
+    } catch (_) {}
+    return { conversationId: null, docId: null, shareUrl: null };
 }
 
-function setReadInitStatus(msg) {
-    document.getElementById("read-init-status").textContent = msg;
-    document.querySelector(".read-spinner-wrap").style.display = "flex";
-    document.getElementById("read-init-error").classList.add("hidden");
-    document.getElementById("read-init-status").classList.remove("hidden");
+// ── Section A: Share card ─────────────────────────────────────────────────
+function renderShareSection(shareInfo) {
+    const section = document.getElementById("read-share-section");
+    const card    = document.getElementById("read-share-card");
+
+    const displayText = shareInfo.linkText || shareInfo.shareUrl || "View on SmartBlue";
+    const displayUrl  = shareInfo.shareUrl  || "";
+
+    card.innerHTML = `
+        <div class="read-share-inner">
+            <svg class="read-share-file-icon" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <div class="read-share-info">
+                <div class="read-share-name" title="${escHtml(displayText)}">${escHtml(displayText)}</div>
+                <div class="read-share-url" title="${escHtml(displayUrl)}">${escHtml(displayUrl)}</div>
+            </div>
+        </div>
+        <button class="btn-start-chat" id="btn-share-chat">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Start Chat
+        </button>`;
+
+    section.classList.remove("hidden");
+
+    document.getElementById("btn-share-chat").onclick = async () => {
+        const btn = document.getElementById("btn-share-chat");
+        btn.disabled = true;
+        showReadStatus("Signing in\u2026");
+        try {
+            const token = await getAuthToken();
+            await enterChat(shareInfo.conversationId, shareInfo.docId, token);
+        } catch (err) {
+            showReadStatus("Error: " + err.message);
+            _cachedSmartBlueToken = null;
+            btn.disabled = false;
+        }
+    };
+}
+
+// ── Section B: Attachments ─────────────────────────────────────────────────
+function isReadBulkMode() { return document.getElementById("chk-bulk").checked; }
+
+function onReadToggleMode() {
+    const bulk = isReadBulkMode();
+    document.getElementById("lbl-bundle").classList.toggle("active", bulk);
+    document.getElementById("lbl-individual").classList.toggle("active", !bulk);
+    document.getElementById("bundle-footer").classList.toggle("hidden", !bulk);
+    loadReadAttachments();
+}
+
+function loadReadAttachments() {
+    const attachments = Office.context.mailbox.item.attachments || [];
+    const listDiv     = document.getElementById("attachment-list");
+    const footerDiv   = document.getElementById("bundle-footer");
+
+    if (!attachments || attachments.length === 0) {
+        listDiv.innerHTML = "<p class='att-empty'>No attachments found.</p>";
+        footerDiv.classList.add("hidden");
+        document.getElementById("btn-upload-bundle").disabled = true;
+        return;
+    }
+
+    if (isReadBulkMode()) {
+        footerDiv.classList.remove("hidden");
+        document.getElementById("btn-upload-bundle").disabled = false;
+        renderBundleList(attachments, listDiv);
+    } else {
+        footerDiv.classList.add("hidden");
+        renderIndividualReadList(attachments, listDiv);
+    }
+}
+
+async function handleReadBundleUpload() {
+    const attachments  = Office.context.mailbox.item.attachments;
+    const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
+    if (!primaryRadio) { showReadStatus("Please select a primary document."); return; }
+
+    const primaryIndex     = parseInt(primaryRadio.value);
+    const primaryAtt       = attachments[primaryIndex];
+    const secondaryIndices = Array.from(
+        document.querySelectorAll("input[name='secondaryIndex']:checked")
+    ).map(c => parseInt(c.value)).filter(i => i !== primaryIndex);
+
+    document.getElementById("btn-upload-bundle").disabled = true;
+    showReadStatus("Signing in\u2026");
+
+    try {
+        const token = await getAuthToken();
+        showReadStatus("Uploading primary document\u2026");
+        const { conversationId, documentId } = await uploadPrimary(primaryAtt, token);
+
+        if (secondaryIndices.length > 0) {
+            showReadStatus("Uploading " + secondaryIndices.length + " supporting doc(s)\u2026");
+            for (const idx of secondaryIndices) {
+                await uploadSupporting(attachments[idx], conversationId, token);
+            }
+        }
+
+        await enterChat(conversationId, documentId, token);
+    } catch (err) {
+        console.error("Read bundle upload error:", err);
+        showReadStatus("Error: " + err.message);
+        _cachedSmartBlueToken = null;
+        document.getElementById("btn-upload-bundle").disabled = false;
+    }
+}
+
+async function handleReadSingleUpload(index) {
+    const att = Office.context.mailbox.item.attachments[index];
+    document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = true);
+    showReadStatus("Uploading " + att.name + "\u2026");
+
+    try {
+        const token = await getAuthToken();
+        const { conversationId, documentId } = await uploadPrimary(att, token);
+        await enterChat(conversationId, documentId, token);
+    } catch (err) {
+        console.error("Read single upload error:", err);
+        showReadStatus("Error: " + err.message);
+        _cachedSmartBlueToken = null;
+        document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
+    }
+}
+
+function renderIndividualReadList(attachments, container) {
+    container.innerHTML = "";
+    attachments.forEach((att, index) => {
+        const div = document.createElement("div");
+        div.className = "att-item";
+        div.innerHTML = `
+            <div class="att-individual-row">
+                <div class="att-info">
+                    <div class="att-name" title="${att.name}">${att.name}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
+                </div>
+                <button class="btn-upload-single" data-index="${index}">Upload</button>
+            </div>`;
+        container.appendChild(div);
+    });
+    container.querySelectorAll(".btn-upload-single").forEach(btn => {
+        btn.onclick = () => handleReadSingleUpload(parseInt(btn.dataset.index));
+    });
+}
+
+function switchToReadView() {
+    document.getElementById("view-chat").classList.add("hidden");
+    document.getElementById("view-read").classList.remove("hidden");
+    document.getElementById("btn-back").classList.add("hidden");
+    document.getElementById("chat-history").innerHTML = "";
+    hideSuggestions();
+    currentConversationId = null;
+    currentDocumentId     = null;
+    const shareBtn = document.getElementById("btn-share-chat");
+    if (shareBtn) shareBtn.disabled = false;
+    loadReadAttachments();
+    showReadStatus("");
+}
+
+function showReadStatus(msg) {
+    const el = document.getElementById("status-msg");
+    if (el) el.innerText = msg;
 }
 
 function showReadInitError(msg) {
@@ -196,25 +337,31 @@ function showReadInitError(msg) {
 // COMPOSE MODE
 // ══════════════════════════════════════════════════════════════════════════
 
-let _composeAttachments = [];   // Office attachment objects from the email
-let _composeRecipients  = [];   // flat array of email strings (To + CC)
+let _composeAttachments = [];
+let _composeRecipients  = [];
 let _senderEmail        = "";
 
 function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
-
     document.getElementById("view-compose").classList.remove("hidden");
-
     document.getElementById("btn-refresh").classList.remove("hidden");
     document.getElementById("btn-refresh").onclick = () => loadComposeData(true);
-
-    document.getElementById("btn-compose-upload").onclick = handleComposeUpload;
+    document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
-
+    document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
     loadComposeData(false);
 }
 
-// ── Read recipients + attachments from the live compose email ─────────────
+function isComposeBulkMode() { return document.getElementById("chk-compose-bulk").checked; }
+
+function onComposeToggleMode() {
+    const bulk = isComposeBulkMode();
+    document.getElementById("clbl-bundle").classList.toggle("active", bulk);
+    document.getElementById("clbl-individual").classList.toggle("active", !bulk);
+    document.getElementById("compose-bundle-footer").classList.toggle("hidden", !bulk);
+    renderComposeAttachments(_composeAttachments);
+}
+
 function loadComposeData(isRefresh) {
     if (isRefresh) {
         document.getElementById("btn-refresh").classList.add("spinning");
@@ -222,9 +369,7 @@ function loadComposeData(isRefresh) {
         showComposeStatus("");
     }
 
-    try {
-        _senderEmail = Office.context.mailbox.userProfile.emailAddress || "";
-    } catch (e) { _senderEmail = ""; }
+    try { _senderEmail = Office.context.mailbox.userProfile.emailAddress || ""; } catch (e) { _senderEmail = ""; }
 
     const item = Office.context.mailbox.item;
 
@@ -242,42 +387,32 @@ function loadComposeData(isRefresh) {
             .filter(e => { if (!e || seen.has(e)) return false; seen.add(e); return true; });
 
         renderComposeRecipients(toList, ccList);
-
         _composeAttachments = attachments;
         renderComposeAttachments(_composeAttachments);
-
         document.getElementById("btn-refresh").classList.remove("spinning");
-        validateComposeReady();
     });
 }
 
-// ── Render recipient chips (To / CC rows) ─────────────────────────────────
 function renderComposeRecipients(toList, ccList) {
     const area  = document.getElementById("compose-recipients");
     const badge = document.getElementById("recipients-count");
     const total = toList.length + ccList.length;
-
     badge.textContent = total || "";
 
     if (total === 0) {
-        area.innerHTML = `<div class="compose-empty">
-            No recipients yet. Add To / CC addresses then click ↻ Refresh.
-        </div>`;
+        area.innerHTML = `<div class="compose-empty">No recipients yet. Add To / CC addresses then click &#8635; Refresh.</div>`;
         return;
     }
 
     area.innerHTML = "";
-
     const buildRow = (label, list) => {
         if (!list.length) return;
         const row = document.createElement("div");
         row.className = "recipient-row";
-
         const lbl = document.createElement("span");
         lbl.className = "recipient-row-label";
         lbl.textContent = label;
         row.appendChild(lbl);
-
         const chips = document.createElement("div");
         chips.className = "recipient-chips";
         list.forEach(r => {
@@ -290,114 +425,112 @@ function renderComposeRecipients(toList, ccList) {
         row.appendChild(chips);
         area.appendChild(row);
     };
-
     buildRow("To:", toList);
     buildRow("CC:", ccList);
 }
 
-// ── Render attachment radio cards ─────────────────────────────────────────
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
     const badge = document.getElementById("attachments-count");
-
     badge.textContent = attachments.length || "";
 
     if (!attachments.length) {
-        list.innerHTML = `<div class="compose-empty">
-            No attachments yet. Attach a document to the email then click ↻ Refresh.
-        </div>`;
+        list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
+        document.getElementById("compose-bundle-footer").classList.add("hidden");
         document.getElementById("btn-compose-upload").disabled = true;
         return;
     }
 
     list.innerHTML = "";
 
+    if (isComposeBulkMode()) {
+        // Bundle mode: primary + supporting selection (same layout as read mode)
+        document.getElementById("compose-bundle-footer").classList.remove("hidden");
+        document.getElementById("btn-compose-upload").disabled = false;
+        renderBundleList(attachments, list);
+    } else {
+        // Individual mode: each attachment gets its own "Upload & Share" button
+        document.getElementById("compose-bundle-footer").classList.add("hidden");
+        renderIndividualComposeList(attachments, list);
+    }
+}
+
+function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
-        div.className = "compose-att-item" + (index === 0 ? " selected" : "");
+        div.className = "att-item";
         div.innerHTML = `
-            <input type="radio" name="composeDoc" id="cdoc-${index}"
-                   value="${index}" ${index === 0 ? "checked" : ""}/>
-            <label for="cdoc-${index}" class="compose-att-label">
-                <svg class="compose-att-icon" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2"
-                     stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                </svg>
-                <div class="compose-att-meta">
-                    <div class="compose-att-name" title="${att.name}">${att.name}</div>
-                    <div class="compose-att-size">${formatBytes(att.size)}</div>
+            <div class="att-individual-row">
+                <div class="att-info">
+                    <div class="att-name" title="${att.name}">${att.name}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-            </label>`;
-        list.appendChild(div);
-
-        div.querySelector("input[type=radio]").addEventListener("change", () => {
-            list.querySelectorAll(".compose-att-item").forEach(el => el.classList.remove("selected"));
-            div.classList.add("selected");
-            validateComposeReady();
-        });
+                <button class="btn-upload-single btn-upload-share" data-index="${index}">Share</button>
+            </div>`;
+        container.appendChild(div);
+    });
+    container.querySelectorAll(".btn-upload-share").forEach(btn => {
+        btn.onclick = () => handleComposeSingleUpload(parseInt(btn.dataset.index));
     });
 }
 
-function validateComposeReady() {
-    const hasAtt = _composeAttachments.length > 0
-                && !!document.querySelector("input[name='composeDoc']:checked");
-    document.getElementById("btn-compose-upload").disabled = !hasAtt;
-}
+// Bundle upload in compose: upload primary + supporting, then share API + insert link
+async function handleComposeBundleUpload() {
+    const attachments  = _composeAttachments;
+    const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
+    if (!primaryRadio) { showComposeStatus("Please select a primary document."); return; }
 
-// ── Upload → Share API → Insert into body ─────────────────────────────────
-async function handleComposeUpload() {
-    const radioEl = document.querySelector("input[name='composeDoc']:checked");
-    if (!radioEl) return;
+    const primaryIndex     = parseInt(primaryRadio.value);
+    const primaryAtt       = attachments[primaryIndex];
+    const secondaryIndices = Array.from(
+        document.querySelectorAll("input[name='secondaryIndex']:checked")
+    ).map(c => parseInt(c.value)).filter(i => i !== primaryIndex);
 
-    const att       = _composeAttachments[parseInt(radioEl.value)];
     const uploadBtn = document.getElementById("btn-compose-upload");
-
     uploadBtn.disabled = true;
     document.getElementById("compose-result").classList.add("hidden");
 
     try {
-        // Step 1 — authenticate
-        showComposeStatus("Signing in…");
+        showComposeStatus("Signing in\u2026");
         const token = await getAuthToken();
 
-        // Step 2 — upload document
-        showComposeStatus("Uploading document…");
-        const blob = await getAttachmentBlob(att.id, att.name);
+        showComposeStatus("Uploading primary document\u2026");
+        const blob = await getAttachmentBlob(primaryAtt.id, primaryAtt.name);
         const form = new FormData();
-        form.append("document", blob, att.name);
+        form.append("document", blob, primaryAtt.name);
 
         const uploadResp = await fetch(UPLOAD_URL, {
-            method:  "POST",
-            headers: { Authorization: "Bearer " + token },
-            body:    form,
+            method: "POST", headers: { Authorization: "Bearer " + token }, body: form,
         });
         if (!uploadResp.ok)
             throw new Error("Upload failed (" + uploadResp.status + "): " + await uploadResp.text());
 
-        const uploadData   = await uploadResp.json();
-        // Prefer conversation_id; fall back to doc_id for the share payload
+        const uploadData     = await uploadResp.json();
         const conversationId = uploadData.conversation_id || uploadData.conversationId || "";
         const docId          = uploadData.doc_id || uploadData.documentId || uploadData.id || "";
 
         if (!conversationId && !docId)
             throw new Error("No conversation ID or document ID returned by upload.");
 
-        // Step 3 — share API (passes conversation_id + recipient list)
-        showComposeStatus("Creating share link…");
+        if (secondaryIndices.length > 0) {
+            showComposeStatus("Uploading " + secondaryIndices.length + " supporting doc(s)\u2026");
+            for (const idx of secondaryIndices) {
+                await uploadSupportingById(_composeAttachments[idx], conversationId, token);
+            }
+        }
+
+        showComposeStatus("Creating share link\u2026");
         const shareLink = await callShareApi(token, conversationId, docId);
 
-        // Step 4 — insert link into email body
-        showComposeStatus("Inserting link into email…");
+        showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${PROXY_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
-        await insertShareLinkIntoBody(documentURL, att.name);
+        await insertShareLinkIntoBody(documentURL, primaryAtt.name);
 
         showComposeStatus("");
         renderComposeResult(shareLink);
 
     } catch (err) {
-        console.error("Compose upload error:", err);
+        console.error("Compose bundle upload error:", err);
         showComposeStatus("Error: " + err.message);
         _cachedSmartBlueToken = null;
     } finally {
@@ -405,27 +538,63 @@ async function handleComposeUpload() {
     }
 }
 
-// ── Share API ──────────────────────────────────────────────────────────────
-// POST /v1/document/share
-// Body: { conversation_id, doc_id (optional), sender_email, recipients: [...] }
-// Returns: { share_url }
+// Individual upload in compose: one doc → share API → insert link
+async function handleComposeSingleUpload(index) {
+    const att = _composeAttachments[index];
+    document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = true);
+    document.getElementById("compose-result").classList.add("hidden");
+    showComposeStatus("Signing in\u2026");
+
+    try {
+        const token = await getAuthToken();
+
+        showComposeStatus("Uploading " + att.name + "\u2026");
+        const blob = await getAttachmentBlob(att.id, att.name);
+        const form = new FormData();
+        form.append("document", blob, att.name);
+
+        const uploadResp = await fetch(UPLOAD_URL, {
+            method: "POST", headers: { Authorization: "Bearer " + token }, body: form,
+        });
+        if (!uploadResp.ok)
+            throw new Error("Upload failed (" + uploadResp.status + "): " + await uploadResp.text());
+
+        const uploadData     = await uploadResp.json();
+        const conversationId = uploadData.conversation_id || uploadData.conversationId || "";
+        const docId          = uploadData.doc_id || uploadData.documentId || uploadData.id || "";
+
+        if (!conversationId && !docId)
+            throw new Error("No document ID returned by upload.");
+
+        showComposeStatus("Creating share link\u2026");
+        const shareLink = await callShareApi(token, conversationId, docId);
+
+        showComposeStatus("Inserting link into email\u2026");
+        const documentURL = `${PROXY_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
+        await insertShareLinkIntoBody(documentURL, att.name);
+
+        showComposeStatus("");
+        renderComposeResult(shareLink);
+
+    } catch (err) {
+        console.error("Compose single upload error:", err);
+        showComposeStatus("Error: " + err.message);
+        _cachedSmartBlueToken = null;
+    } finally {
+        document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = false);
+    }
+}
+
 async function callShareApi(token, conversationId, docId) {
-    const payload = {
-        sender_email: _senderEmail,
-        recipients:   _composeRecipients,
-    };
+    const payload = { sender_email: _senderEmail, recipients: _composeRecipients };
     if (conversationId) payload.conversation_id = conversationId;
     if (docId)          payload.doc_id           = docId;
 
     const resp = await fetch(SHARE_URL, {
-        method:  "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization:  "Bearer " + token,
-        },
-        body: JSON.stringify(payload),
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body:   JSON.stringify(payload),
     });
-
     if (!resp.ok)
         throw new Error("Share API failed (" + resp.status + "): " + await resp.text());
 
@@ -435,20 +604,18 @@ async function callShareApi(token, conversationId, docId) {
     return url;
 }
 
-// ── Auto-insert share link into the email body ─────────────────────────────
 function insertShareLinkIntoBody(link, filename) {
     return new Promise((resolve) => {
         const html = `<p style="font-family:sans-serif;margin:8px 0;">`
                    + `<a href="${link}" target="_blank" `
                    + `style="color:#0D47A1;font-weight:600;text-decoration:none;">`
-                   + `📄 ${filename} — View on SmartBlue</a></p>`;
+                   + `\uD83D\uDCC4 ${filename} \u2014 View on SmartBlue</a></p>`;
 
         Office.context.mailbox.item.body.setSelectedDataAsync(
             html,
             { coercionType: Office.CoercionType.Html },
             (result) => {
                 if (result.status === Office.AsyncResultStatus.Failed) {
-                    // Plain-text fallback
                     Office.context.mailbox.item.body.setSelectedDataAsync(
                         `\n${filename}: ${link}\n`,
                         { coercionType: Office.CoercionType.Text },
@@ -490,9 +657,66 @@ function fallbackCopy(text, cb) {
     document.body.removeChild(ta);
 }
 
-function showComposeStatus(msg) {
-    document.getElementById("compose-status").innerText = msg;
+function showComposeStatus(msg) { document.getElementById("compose-status").innerText = msg; }
+
+// ══════════════════════════════════════════════════════════════════════════
+// SHARED ATTACHMENT HELPERS
+// ══════════════════════════════════════════════════════════════════════════
+
+// Shared bundle list renderer — used by both read and compose bundle modes
+function renderBundleList(attachments, container) {
+    container.innerHTML = "";
+    attachments.forEach((att, index) => {
+        const isPrimary = index === 0;
+        const div = document.createElement("div");
+        div.className = "att-item" + (isPrimary ? " is-primary" : "");
+        div.dataset.index = index;
+        div.innerHTML = `
+            <div class="att-bundle-row">
+                <div class="att-radio-col">
+                    <input type="radio" name="primaryIndex" value="${index}"
+                           id="radio-${index}" ${isPrimary ? "checked" : ""}/>
+                    <label class="radio-label" for="radio-${index}">Primary</label>
+                </div>
+                <div class="att-info">
+                    <div class="att-name" title="${att.name}">${att.name}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
+                </div>
+                <div class="att-secondary-col">
+                    <input type="checkbox" name="secondaryIndex" value="${index}"
+                           id="chk-sec-${index}" ${isPrimary ? "" : "checked"}
+                           ${isPrimary ? "disabled" : ""}/>
+                    <label class="sec-label" for="chk-sec-${index}">Include</label>
+                </div>
+            </div>`;
+        container.appendChild(div);
+    });
+    container.querySelectorAll("input[name='primaryIndex']").forEach(radio => {
+        radio.addEventListener("change", () => updateBundleSelection(container));
+    });
 }
+
+function updateBundleSelection(container) {
+    const primaryVal = container.querySelector("input[name='primaryIndex']:checked")?.value;
+    container.querySelectorAll(".att-item").forEach(item => {
+        const idx       = item.dataset.index;
+        const isPrimary = idx === primaryVal;
+        const secChk    = item.querySelector("input[name='secondaryIndex']");
+        item.classList.toggle("is-primary", isPrimary);
+        if (isPrimary) {
+            secChk.checked  = false;
+            secChk.disabled = true;
+        } else {
+            secChk.disabled = false;
+            if (!secChk.dataset.userUnchecked) secChk.checked = true;
+        }
+    });
+}
+
+document.addEventListener("change", (e) => {
+    if (e.target.name === "secondaryIndex")
+        e.target.dataset.userUnchecked = e.target.checked ? "" : "1";
+});
 
 // ══════════════════════════════════════════════════════════════════════════
 // AUTH
@@ -521,9 +745,9 @@ async function getAuthToken() {
     }
 
     const authResp = await fetch(AUTH_URL, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ idToken }),
+        body:   JSON.stringify({ idToken }),
     });
     if (!authResp.ok) throw new Error("Auth failed (" + authResp.status + "): " + await authResp.text());
 
@@ -534,8 +758,42 @@ async function getAuthToken() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// ATTACHMENT BLOB HELPER  (compose upload)
+// UPLOAD HELPERS
 // ══════════════════════════════════════════════════════════════════════════
+async function uploadPrimary(att, token) {
+    const blob = await getAttachmentBlob(att.id, att.name);
+    const form = new FormData();
+    form.append("document", blob, att.name);
+
+    const resp = await fetch(UPLOAD_URL, {
+        method: "POST", headers: { Authorization: "Bearer " + token }, body: form,
+    });
+    if (!resp.ok) throw new Error("Upload failed (" + resp.status + "): " + await resp.text());
+
+    const data           = await resp.json();
+    const conversationId = data.conversation_id || data.conversationId;
+    const documentId     = data.doc_id || data.documentId || data.id || null;
+
+    if (!conversationId) throw new Error("No conversation_id returned by upload.");
+    return { conversationId, documentId };
+}
+
+async function uploadSupporting(att, conversationId, token) {
+    return uploadSupportingById(att, conversationId, token);
+}
+
+async function uploadSupportingById(att, conversationId, token) {
+    const blob = await getAttachmentBlob(att.id, att.name);
+    const form = new FormData();
+    form.append("document", blob, att.name);
+
+    const resp = await fetch(
+        `${BUNDLE_ADD_URL}?conversation_id=${encodeURIComponent(conversationId)}`,
+        { method: "POST", headers: { Authorization: "Bearer " + token }, body: form }
+    );
+    if (!resp.ok) console.warn("Supporting upload failed:", att.name, await resp.text());
+}
+
 function getAttachmentBlob(attachmentId, filename) {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.item.getAttachmentContentAsync(attachmentId, (result) => {
@@ -568,16 +826,17 @@ function getMimeType(filename) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════
-// CHAT (shared by both modes via enterChat)
+// CHAT
 // ══════════════════════════════════════════════════════════════════════════
 async function enterChat(conversationId, documentId, token) {
     currentConversationId = conversationId;
     currentDocumentId     = documentId;
 
-    // Hide whichever init view is showing, reveal chat
     document.getElementById("view-read-init").classList.add("hidden");
+    document.getElementById("view-read").classList.add("hidden");
     document.getElementById("view-compose").classList.add("hidden");
     document.getElementById("view-chat").classList.remove("hidden");
+    document.getElementById("btn-back").classList.remove("hidden");
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
 
@@ -585,9 +844,9 @@ async function enterChat(conversationId, documentId, token) {
 
     try {
         const resp = await fetch(WELCOME_URL, {
-            method:  "POST",
+            method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:    JSON.stringify({ conversationId, documentId }),
+            body:   JSON.stringify({ conversationId, documentId }),
         });
         hideTypingIndicator();
 
@@ -614,7 +873,11 @@ function renderSuggestions(tags) {
         const chip = document.createElement("button");
         chip.className = "chip";
         chip.textContent = q;
-        chip.onclick = () => { hideSuggestions(); document.getElementById("user-input").value = q; sendChatMessage(); };
+        chip.onclick = () => {
+            hideSuggestions();
+            document.getElementById("user-input").value = q;
+            sendChatMessage();
+        };
         box.appendChild(chip);
     });
     box.classList.remove("hidden");
@@ -640,9 +903,9 @@ async function sendChatMessage() {
     try {
         const token = await getAuthToken();
         const resp  = await fetch(ASK_URL, {
-            method:  "POST",
+            method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:    JSON.stringify({ conversationId: currentConversationId, text, isMobile: false }),
+            body:   JSON.stringify({ conversationId: currentConversationId, text, isMobile: false }),
         });
         hideTypingIndicator();
         if (!resp.ok) throw new Error("Ask failed (" + resp.status + "): " + await resp.text());
@@ -670,9 +933,9 @@ function formatResponse(raw) {
     for (const rawLine of lines) {
         const line = rawLine.trim();
         if (!line) { if (inList) { html += "</ul>"; inList = false; } continue; }
-        if (/^[*●•]\s+/.test(line)) {
+        if (/^[*\u25CF\u2022]\s+/.test(line)) {
             if (!inList) { html += '<ul class="ai-list">'; inList = true; }
-            html += "<li>" + line.replace(/^[*●•]\s+/, "") + "</li>";
+            html += "<li>" + line.replace(/^[*\u25CF\u2022]\s+/, "") + "</li>";
         } else {
             if (inList) { html += "</ul>"; inList = false; }
             html += "<p>" + line + "</p>";
@@ -711,6 +974,12 @@ function appendMessage(role, text) {
 // ══════════════════════════════════════════════════════════════════════════
 // UTILITIES
 // ══════════════════════════════════════════════════════════════════════════
+function escHtml(str) {
+    return (str || "")
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
 function formatBytes(bytes) {
     if (!bytes) return "";
     if (bytes < 1024)    return bytes + " B";

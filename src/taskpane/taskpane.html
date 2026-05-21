@@ -24,8 +24,7 @@
                 <div class="header-title">Analyse Document</div>
                 <div class="header-sub">SmartBlue AI</div>
             </div>
-            <!-- Refresh — only visible in compose mode -->
-            <button id="btn-refresh" class="btn-refresh hidden" title="Refresh recipients &amp; attachments">
+            <button id="btn-refresh" class="btn-refresh hidden" title="Refresh">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
                      stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="23 4 23 10 17 10"/>
@@ -34,11 +33,9 @@
             </button>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════════
+        <!-- ══════════════════════════════════════════════════════
              COMPOSE VIEW
-             Reads To/CC recipients and attachments from the email
-             being composed. Refresh re-reads live state.
-             ══════════════════════════════════════════════════════════ -->
+             ══════════════════════════════════════════════════════ -->
         <div id="view-compose" class="view hidden">
 
             <!-- Recipients -->
@@ -52,19 +49,27 @@
                 </div>
             </div>
 
-            <!-- Document (from email attachments) -->
+            <!-- Documents with Individual / Bundle toggle -->
             <div class="compose-section compose-section-grow">
                 <div class="compose-section-header">
-                    <span class="compose-section-title">Document</span>
+                    <span class="compose-section-title">Documents</span>
                     <span class="compose-badge" id="attachments-count"></span>
+                    <div class="mode-bar-mini">
+                        <span class="mode-label" id="clbl-individual">Individual</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-compose-bulk" checked />
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        </label>
+                        <span class="mode-label active" id="clbl-bundle">Bundle</span>
+                    </div>
                 </div>
                 <div id="compose-attachments" class="compose-att-list">
                     <div class="compose-loading">Reading attachments…</div>
                 </div>
             </div>
 
-            <!-- Action -->
-            <div class="compose-footer">
+            <!-- Bundle footer (Upload & Share) -->
+            <div class="compose-footer hidden" id="compose-bundle-footer">
                 <button id="btn-compose-upload" class="btn-primary" disabled>
                     ⬆&nbsp; Upload &amp; Share
                 </button>
@@ -72,7 +77,7 @@
 
             <div id="compose-status" class="status-msg"></div>
 
-            <!-- Result card — auto-shown after share URL is inserted -->
+            <!-- Result card -->
             <div id="compose-result" class="result-card hidden">
                 <div class="result-top">
                     <svg class="result-check" viewBox="0 0 24 24" fill="none"
@@ -97,17 +102,15 @@
 
         </div><!-- /view-compose -->
 
-        <!-- ══════════════════════════════════════════════════════════
-             READ INIT VIEW
-             Shown briefly while the add-in scans the email body for
-             a SmartBlue share URL, then transitions to chat.
-             ══════════════════════════════════════════════════════════ -->
+        <!-- ══════════════════════════════════════════════════════
+             READ INIT VIEW  (loading screen)
+             ══════════════════════════════════════════════════════ -->
         <div id="view-read-init" class="view hidden">
             <div class="read-init-body">
                 <div class="read-spinner-wrap">
                     <div class="read-spinner"></div>
                 </div>
-                <div id="read-init-status" class="read-init-status">Looking for share link…</div>
+                <div id="read-init-status" class="read-init-status">Reading email…</div>
                 <div id="read-init-error" class="read-init-error hidden">
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
                          stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -115,14 +118,58 @@
                         <line x1="12" y1="8" x2="12" y2="12"/>
                         <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    <p id="read-error-msg">No SmartBlue share link found in this email.</p>
+                    <p id="read-error-msg">Could not read email.</p>
                 </div>
             </div>
-        </div><!-- /view-read-init -->
+        </div>
 
-        <!-- ══════════════════════════════════════════════════════════
+        <!-- ══════════════════════════════════════════════════════
+             READ CONTENT VIEW
+             A. Share link  (top, hidden when none found)
+             B. Attachments (individual / bundle)
+             ══════════════════════════════════════════════════════ -->
+        <div id="view-read" class="view hidden">
+
+            <!-- A. Share link found in email body -->
+            <div id="read-share-section" class="read-section hidden">
+                <div class="read-section-label">Shared Document</div>
+                <div id="read-share-card" class="read-share-card">
+                    <!-- populated by JS -->
+                </div>
+            </div>
+
+            <!-- Divider (only when both A and B are visible) -->
+            <div id="read-or-divider" class="read-or-divider hidden">
+                <span>or upload attachment</span>
+            </div>
+
+            <!-- B. Attachments with toggle -->
+            <div id="read-attach-section" class="read-section">
+                <div class="read-attach-header">
+                    <span class="read-section-label">Attachments</span>
+                    <div class="mode-bar-mini">
+                        <span class="mode-label" id="lbl-individual">Individual</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-bulk" checked />
+                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                        </label>
+                        <span class="mode-label active" id="lbl-bundle">Bundle</span>
+                    </div>
+                </div>
+                <div id="attachment-list" class="attachment-list"></div>
+                <div class="footer hidden" id="bundle-footer">
+                    <button id="btn-upload-bundle" class="btn-primary">
+                        ⬆ Upload &amp; Analyse
+                    </button>
+                </div>
+            </div>
+
+            <div id="status-msg" class="status-msg"></div>
+        </div><!-- /view-read -->
+
+        <!-- ══════════════════════════════════════════════════════
              CHAT VIEW
-             ══════════════════════════════════════════════════════════ -->
+             ══════════════════════════════════════════════════════ -->
         <div id="view-chat" class="view hidden">
             <div id="chat-history" class="chat-history"></div>
             <div id="suggestions" class="suggestions hidden"></div>

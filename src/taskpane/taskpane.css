@@ -573,3 +573,133 @@ html, body {
     max-width: 220px;
     line-height: 1.5;
 }
+
+/* ── Read content view ──────────────────────────────────────────── */
+#view-read { overflow-y: auto; }
+
+.read-section {
+    padding: 10px 14px;
+}
+
+.read-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #9e9e9e;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+/* Share link card */
+.read-share-card {
+    background: #fff;
+    border: 1px solid #e3e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.read-share-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.read-share-file-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    color: #0D47A1;
+}
+
+.read-share-info { min-width: 0; }
+
+.read-share-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.read-share-url {
+    font-size: 10px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.btn-start-chat {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #0D47A1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-start-chat:hover    { background: #1565C0; }
+.btn-start-chat:disabled { background: #90A4AE; cursor: not-allowed; }
+
+/* Or divider */
+.read-or-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 14px;
+    color: #bbb;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.read-or-divider::before,
+.read-or-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #ebebeb;
+}
+
+/* Attachment section header with inline mode toggle */
+.read-attach-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+/* Inline mode-bar (used in both read and compose headers) */
+.mode-bar-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.att-empty {
+    color: #888;
+    font-size: 13px;
+    padding: 8px 0;
+    margin: 0;
+}
+
+/* Individual upload "Share" button variant */
+.btn-upload-share {
+    background: #0D47A1 !important;
+    color: #fff !important;
+}
+.btn-upload-share:hover    { background: #1565C0 !important; }
+.btn-upload-share:disabled { background: #90A4AE !important; }
