@@ -540,7 +540,7 @@ async function handleComposeBundleUpload() {
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
 
         showComposeStatus("");
-        renderComposeResult(shareLink);
+        renderComposeResult(documentURL);
 
     } catch (err) {
         console.error("Compose bundle upload error:", err);
@@ -596,7 +596,7 @@ async function handleComposeSingleUpload(index) {
         await insertShareLinkIntoBody(documentURL, att.name);
 
         showComposeStatus("");
-        renderComposeResult(shareLink);
+        renderComposeResult(documentURL);
 
     } catch (err) {
         console.error("Compose single upload error:", err);
