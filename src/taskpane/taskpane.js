@@ -390,7 +390,8 @@ async function handleComposeUpload() {
 
         // Step 4 — insert link into email body
         showComposeStatus("Inserting link into email…");
-        await insertShareLinkIntoBody(shareLink, att.name);
+        const documentURL = `${PROXY_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
+        await insertShareLinkIntoBody(documentURL, att.name);
 
         showComposeStatus("");
         renderComposeResult(shareLink);
