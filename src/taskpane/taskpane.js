@@ -1,5 +1,6 @@
 // ── Proxy base URL ─────────────────────────────────────────────────────────
 const PROXY_BASE     = "https://headphone-crust-stipulate.ngrok-free.dev";
+const BLUE_BASE      = "https://demo.smartblue.ai";  // SmartBlue frontend — used in inserted email links
 
 const AUTH_URL       = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL     = `${PROXY_BASE}/v1/document/upload`;
@@ -84,7 +85,7 @@ function initRead() {
 }
 
 // ── Parse email body for the first document URL ────────────────────────────
-// Inserted URL format: ${PROXY_BASE}/conversation?conversation-id=X&doc-id=Y
+// Inserted URL format: ${BLUE_BASE}/conversation?conversation-id=X&doc-id=Y
 function extractShareLinkFromBody() {
     return new Promise((resolve, reject) => {
         Office.context.mailbox.item.body.getAsync(Office.CoercionType.Html, (result) => {
@@ -532,7 +533,7 @@ async function handleComposeBundleUpload() {
         const shareLink = await callShareApi(token, conversationId, docId);
 
         showComposeStatus("Inserting link into email\u2026");
-        const documentURL = `${PROXY_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
+        const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
 
         showComposeStatus("");
@@ -588,7 +589,7 @@ async function handleComposeSingleUpload(index) {
         const shareLink = await callShareApi(token, conversationId, docId);
 
         showComposeStatus("Inserting link into email\u2026");
-        const documentURL = `${PROXY_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
+        const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${docId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
 
         showComposeStatus("");
