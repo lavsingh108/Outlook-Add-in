@@ -521,3 +521,55 @@ html, body {
 .btn-copy svg  { width: 14px; height: 14px; }
 .btn-copy:hover  { background: #e3ecff; border-color: #0D47A1; color: #0D47A1; }
 .btn-copy.copied { background: #e8f5e9; border-color: #43a047; color: #2e7d32; }
+/* ── Read-init view (loading / error state) ─────────────────────────── */
+#view-read-init {
+    justify-content: center;
+    align-items: center;
+}
+
+.read-init-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 24px;
+    text-align: center;
+    flex: 1;
+}
+
+.read-spinner-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.read-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e0e7f3;
+    border-top-color: #0D47A1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.read-init-status {
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+}
+
+.read-init-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.read-init-error p {
+    font-size: 13px;
+    color: #666;
+    max-width: 220px;
+    line-height: 1.5;
+}

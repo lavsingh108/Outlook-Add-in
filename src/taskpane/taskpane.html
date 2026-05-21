@@ -98,23 +98,27 @@
         </div><!-- /view-compose -->
 
         <!-- ══════════════════════════════════════════════════════════
-             READ VIEW
+             READ INIT VIEW
+             Shown briefly while the add-in scans the email body for
+             a SmartBlue share URL, then transitions to chat.
              ══════════════════════════════════════════════════════════ -->
-        <div id="view-attachments" class="view">
-            <div class="mode-bar">
-                <span class="mode-label" id="lbl-individual">Individual</span>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="chk-bulk" checked />
-                    <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                </label>
-                <span class="mode-label active" id="lbl-bundle">Bundle</span>
+        <div id="view-read-init" class="view hidden">
+            <div class="read-init-body">
+                <div class="read-spinner-wrap">
+                    <div class="read-spinner"></div>
+                </div>
+                <div id="read-init-status" class="read-init-status">Looking for share link…</div>
+                <div id="read-init-error" class="read-init-error hidden">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+                         stroke="#E53935" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p id="read-error-msg">No SmartBlue share link found in this email.</p>
+                </div>
             </div>
-            <div id="attachment-list" class="attachment-list">Loading attachments…</div>
-            <div class="footer" id="bundle-footer">
-                <button id="btn-upload-bundle" class="btn-primary">⬆ Upload &amp; Analyse</button>
-            </div>
-            <div id="status-msg" class="status-msg"></div>
-        </div>
+        </div><!-- /view-read-init -->
 
         <!-- ══════════════════════════════════════════════════════════
              CHAT VIEW

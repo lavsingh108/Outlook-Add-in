@@ -6,7 +6,7 @@
   xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
   xsi:type="MailApp">
   <Id>c49037f2-0565-4a5c-8b17-f9b8b3ee35c7</Id>
-  <Version>1.0.0.4</Version>
+  <Version>1.0.0.7</Version>
   <ProviderName>SmartBlue</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Blue AI"/>
@@ -40,6 +40,8 @@
     <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
   </Rule>
   <DisableEntityHighlighting>false</DisableEntityHighlighting>
+
+  <!-- ===== VERSION OVERRIDES V1_0 ===== -->
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Requirements>
       <bt:Sets DefaultMinVersion="1.3">
@@ -50,6 +52,8 @@
       <Host xsi:type="MailHost">
         <DesktopFormFactor>
           <FunctionFile resid="Taskpane.Url"/>
+
+          <!-- Read -->
           <ExtensionPoint xsi:type="MessageReadCommandSurface">
             <OfficeTab id="TabDefault">
               <Group id="msgReadGroup">
@@ -72,6 +76,31 @@
               </Group>
             </OfficeTab>
           </ExtensionPoint>
+
+          <!-- Compose -->
+          <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+            <OfficeTab id="TabDefault">
+              <Group id="msgComposeGroup">
+                <Label resid="GroupLabel"/>
+                <Control xsi:type="Button" id="msgComposeOpenPaneButton">
+                  <Label resid="TaskpaneButton.Label"/>
+                  <Supertip>
+                    <Title resid="TaskpaneButton.Label"/>
+                    <Description resid="TaskpaneButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+
         </DesktopFormFactor>
       </Host>
     </Hosts>
@@ -93,6 +122,8 @@
         <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Open the Blue AI analysis pane for this email."/>
       </bt:LongStrings>
     </Resources>
+
+    <!-- ===== VERSION OVERRIDES V1_1 (nested inside V1_0) ===== -->
     <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
       <Requirements>
         <bt:Sets DefaultMinVersion="1.3">
@@ -103,11 +134,13 @@
         <Host xsi:type="MailHost">
           <DesktopFormFactor>
             <FunctionFile resid="Taskpane.Url"/>
+
+            <!-- Read -->
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">
-                <Group id="msgReadGroup">
+                <Group id="msgReadGroup_v2">
                   <Label resid="GroupLabel"/>
-                  <Control xsi:type="Button" id="msgReadOpenPaneButton">
+                  <Control xsi:type="Button" id="msgReadOpenPaneButton_v2">
                     <Label resid="TaskpaneButton.Label"/>
                     <Supertip>
                       <Title resid="TaskpaneButton.Label"/>
@@ -126,6 +159,32 @@
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
+
+            <!-- Compose -->
+            <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="msgComposeGroup_v2">
+                  <Label resid="GroupLabel"/>
+                  <Control xsi:type="Button" id="msgComposeOpenPaneButton_v2">
+                    <Label resid="TaskpaneButton.Label"/>
+                    <Supertip>
+                      <Title resid="TaskpaneButton.Label"/>
+                      <Description resid="TaskpaneButton.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16x16"/>
+                      <bt:Image size="32" resid="Icon.32x32"/>
+                      <bt:Image size="80" resid="Icon.80x80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="Taskpane.Url"/>
+                      <SupportsPinning>true</SupportsPinning>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+
           </DesktopFormFactor>
         </Host>
       </Hosts>
@@ -158,5 +217,9 @@
         </Scopes>
       </WebApplicationInfo>
     </VersionOverrides>
+    <!-- ===== END V1_1 ===== -->
+
   </VersionOverrides>
+  <!-- ===== END V1_0 ===== -->
+
 </OfficeApp>
