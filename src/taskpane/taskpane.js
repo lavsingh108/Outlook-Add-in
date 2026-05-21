@@ -875,40 +875,57 @@ async function enterChat(conversationId, documentId, token) {
     hideSuggestions();
 
     if (!documentId) {
-        console.error("enterChat called without documentId for conversationId:", conversationId);
-        appendMessage("ai", "Cannot start chat: document ID is missing from the share link. Please re-share the document.");
+        appendMessage("ai", "Cannot start chat: document ID is missing. Please re-share the document.");
         return;
     }
 
     showTypingIndicator();
 
+    // ── Step 1: try to restore existing conversation history ─────────────────
+    // Isolated try/catch: any error here (CORS, 4xx, network) is swallowed
+    // and we fall through to Step 2 (welcome API) instead of crashing.
+    let historyRestored = false;
     try {
-        // ── Step 1: fetch existing conversation history ───────────────────────
-        // If the assistant has already replied, welcome was already called —
-        // restore the messages instead of calling welcome again.
         const histResp = await fetch(
             `${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}&document_id=${encodeURIComponent(documentId)}`,
-            { headers: { Authorization: "Bearer " + token } }
+            {
+                headers: {
+                    Authorization: "Bearer " + token,
+                    "ngrok-skip-browser-warning": "true",   // prevents ngrok interstitial page
+                },
+            }
         );
 
         if (histResp.ok) {
-            const conv    = await histResp.json();
-            const msgs    = Array.isArray(conv.messages) ? conv.messages : [];
-            const hasAI   = msgs.some(m => m.sender === "assistant");
+            const conv  = await histResp.json();
+            const msgs  = Array.isArray(conv.messages) ? conv.messages : [];
+            const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
 
             if (hasAI) {
-                // Conversation already started — restore history, skip welcome
                 hideTypingIndicator();
                 restoreConversationHistory(msgs);
-                return;
+                historyRestored = true;
             }
+        } else {
+            console.warn("History API returned", histResp.status, "— falling through to welcome");
         }
+    } catch (histErr) {
+        // Network error / CORS error from history endpoint — non-fatal, continue to welcome
+        console.warn("History fetch failed (non-fatal):", histErr.message, "— falling through to welcome");
+    }
 
-        // ── Step 2: no prior AI messages — call welcome ───────────────────────
+    if (historyRestored) return;
+
+    // ── Step 2: no prior history — call welcome API ───────────────────────────
+    try {
         const resp = await fetch(WELCOME_URL, {
-            method:  "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-            body:    JSON.stringify({ conversationId, documentId }),
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + token,
+                "ngrok-skip-browser-warning": "true",
+            },
+            body: JSON.stringify({ conversationId, documentId }),
         });
 
         const rawText = await resp.text();
@@ -922,36 +939,23 @@ async function enterChat(conversationId, documentId, token) {
 
         let data;
         try { data = JSON.parse(rawText); } catch {
-            console.error("Welcome response not JSON:", rawText);
             appendMessage("ai", "Hello! How can I help you with this document?");
             return;
         }
 
-        console.log("Welcome response:", data);
-
         const welcomeMsg =
-            data.answer       ||
-            data.response     ||
-            data.message      ||
-            data.text         ||
-            data.content      ||
-            data.welcomeText  ||
-            data.welcome_text ||
-            (typeof data === "string" ? data : null);
+            data.answer || data.response || data.message ||
+            data.text   || data.content  || data.welcomeText ||
+            data.welcome_text || (typeof data === "string" ? data : null);
 
-        if (welcomeMsg) {
-            appendMessage("ai", welcomeMsg);
-        } else {
-            console.warn("Welcome API returned no recognised text field. Keys:", Object.keys(data));
-            appendMessage("ai", "Hello! How can I help you with this document?");
-        }
+        appendMessage("ai", welcomeMsg || "Hello! How can I help you with this document?");
 
         const tags = Array.isArray(data.tags) ? data.tags : [];
         if (tags.length) renderSuggestions(tags);
 
     } catch (err) {
         hideTypingIndicator();
-        console.error("enterChat error:", err);
+        console.error("enterChat welcome error:", err);
         appendMessage("ai", "Network error. You can still ask questions below.");
     }
 }
