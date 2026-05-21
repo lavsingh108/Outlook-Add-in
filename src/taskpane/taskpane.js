@@ -232,8 +232,10 @@ function loadComposeData(isRefresh) {
         new Promise(res => item.to.getAsync(r =>
             res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : []))),
         new Promise(res => item.cc.getAsync(r =>
+            res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : []))),
+        new Promise(res => item.getAttachmentsAsync(r =>
             res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : [])))
-    ]).then(([toList, ccList]) => {
+    ]).then(([toList, ccList, attachments]) => {
         const seen = new Set();
         _composeRecipients = [...toList, ...ccList]
             .map(r => (r.emailAddress || "").toLowerCase().trim())
@@ -241,7 +243,7 @@ function loadComposeData(isRefresh) {
 
         renderComposeRecipients(toList, ccList);
 
-        _composeAttachments = item.attachments || [];
+        _composeAttachments = attachments;
         renderComposeAttachments(_composeAttachments);
 
         document.getElementById("btn-refresh").classList.remove("spinning");
