@@ -459,7 +459,7 @@ function insertShareLinkIntoBody(link, filename) {
     });
 }
 function renderComposeResult(link) {
-    document.getElementById("result-link-text").textContent = link;
+    // document.getElementById("result-link-text").textContent = link;
     document.getElementById("compose-result").classList.remove("hidden");
     document.getElementById("compose-result").scrollIntoView({ behavior:"smooth" });
 }
@@ -776,7 +776,7 @@ async function handleComposeSingleUpload(index) {
     } finally { document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = false); }
 }
 function copyResultLink() {
-    const link = document.getElementById("result-link-text").textContent;
+    // const link = document.getElementById("result-link-text").textContent;
     const btn  = document.getElementById("btn-copy-link");
     const done = () => { btn.classList.add("copied"); setTimeout(() => btn.classList.remove("copied"), 1600); };
     if (navigator.clipboard) navigator.clipboard.writeText(link).then(done).catch(() => fallbackCopy(link, done));
