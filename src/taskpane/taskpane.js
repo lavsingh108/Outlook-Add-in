@@ -659,24 +659,25 @@ function loadComposeData(isRefresh) {
     Promise.all([
         new Promise(res => item.to.getAsync(r => res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : []))),
         new Promise(res => item.cc.getAsync(r => res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : []))),
+        new Promise(res => item.bcc.getAsync(r => res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : []))),
         new Promise(res => item.getAttachmentsAsync(r => res(r.status === Office.AsyncResultStatus.Succeeded ? r.value : [])))
-    ]).then(([toList, ccList, attachments]) => {
+    ]).then(([toList, ccList, bccList, attachments]) => {
         const seen = new Set();
-        _composeRecipients = [...toList, ...ccList]
+        _composeRecipients = [...toList, ...ccList, ...bccList]
             .map(r => (r.emailAddress || "").toLowerCase().trim())
             .filter(e => { if (!e || seen.has(e)) return false; seen.add(e); return true; });
-        renderComposeRecipients(toList, ccList);
+        renderComposeRecipients(toList, ccList, bccList);
         _composeAttachments = attachments;
         renderComposeAttachments(_composeAttachments);
         document.getElementById("btn-refresh").classList.remove("spinning");
     });
 }
-function renderComposeRecipients(toList, ccList) {
+function renderComposeRecipients(toList, ccList, bccList) {
     const area  = document.getElementById("compose-recipients");
     const badge = document.getElementById("recipients-count");
-    const total = toList.length + ccList.length;
+    const total = toList.length + ccList.length + bccList.length;
     badge.textContent = total || "";
-    if (total === 0) { area.innerHTML = `<div class="compose-empty">No recipients yet. Add To / CC addresses then click &#8635; Refresh.</div>`; return; }
+    if (total === 0) { area.innerHTML = `<div class="compose-empty">No recipients yet. Add To / CC / BCC addresses then click &#8635; Refresh.</div>`; return; }
     area.innerHTML = "";
     const buildRow = (label, list) => {
         if (!list.length) return;
@@ -691,7 +692,7 @@ function renderComposeRecipients(toList, ccList) {
         });
         row.appendChild(chips); area.appendChild(row);
     };
-    buildRow("To:", toList); buildRow("CC:", ccList);
+    buildRow("To:", toList); buildRow("CC:", ccList); buildRow("BCC:", bccList);
 }
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
