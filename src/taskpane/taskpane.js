@@ -447,8 +447,9 @@ function renderShareSection(shareInfo) {
 function insertShareLinkIntoBody(link, filename) {
     return new Promise((resolve) => {
         const html = `<p style="font-family:sans-serif;margin:8px 0;">`
-                   + `<a href="${link}" target="_blank" style="color:#0D47A1;font-weight:600;text-decoration:none;">`
-                   + `\uD83D\uDCC4 ${filename} \u2014 View on SmartBlue</a></p>`;
+                   + `<a href="${link}" target="_blank" style="color:#0D47A1;font-size:14px;font-weight:500;text-decoration:none;">`
+                   + `${filename}</a></p>`
+                   + `<p>Click on this link to view this document in the BlueAI</p>`;
         Office.context.mailbox.item.body.setSelectedDataAsync(html, { coercionType:Office.CoercionType.Html }, (result) => {
             if (result.status === Office.AsyncResultStatus.Failed) {
                 Office.context.mailbox.item.body.setSelectedDataAsync(`\n${filename}: ${link}\n`,
