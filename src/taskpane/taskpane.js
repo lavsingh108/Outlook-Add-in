@@ -493,7 +493,7 @@ function initRead() {
         .then(shareInfo => {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
-            // if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
+            if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
             loadCustomProps().then(cp => { _customProps = cp; renderPreviousChats(); }).catch(() => {});
             loadReadAttachments();
             const atts = Office.context.mailbox.item.attachments || [];
