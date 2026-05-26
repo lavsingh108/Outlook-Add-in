@@ -258,13 +258,19 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
 }
 function fetchHistory(token, conversationId) {
     return fetch(`${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`, {
-        headers: { Authorization:"Bearer "+token }
+        headers: { 
+            Authorization:"Bearer "+ token, 
+            "ngrok-skip-browser-warning":"true" 
+        }
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
     return fetch(WELCOME_URL, {
         method:"POST",
-        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token },
+        headers: { 
+            Authorization:"Bearer "+ token, 
+            "ngrok-skip-browser-warning":"true" 
+        },
         body: JSON.stringify({ conversationId, documentId }),
     });
 }
@@ -808,7 +814,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs); // skip welcome
+                restoreConversationHistory(msgs);
                 return;
             }
         }
