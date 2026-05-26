@@ -257,22 +257,14 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 function fetchHistory(token, conversationId) {
-    return fetch(`${CONVERSATION_URL}/history`, {
-        method:"GET",
-        headers: { 
-            Authorization:"Bearer "+ token, 
-            "ngrok-skip-browser-warning":"true" 
-        },
-        body: JSON.stringify({ conversationId })
+    return fetch(`${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`, {
+        headers: { Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" }
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
     return fetch(WELCOME_URL, {
         method:"POST",
-        headers: { 
-            Authorization:"Bearer "+ token, 
-            "ngrok-skip-browser-warning":"true" 
-        },
+        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" },
         body: JSON.stringify({ conversationId, documentId }),
     });
 }
@@ -501,7 +493,7 @@ function initRead() {
         .then(shareInfo => {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
-            // if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
+            if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
             loadCustomProps().then(cp => { _customProps = cp; renderPreviousChats(); }).catch(() => {});
             loadReadAttachments();
             const atts = Office.context.mailbox.item.attachments || [];
@@ -816,7 +808,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs);
+                restoreConversationHistory(msgs); // skip welcome
                 return;
             }
         }
