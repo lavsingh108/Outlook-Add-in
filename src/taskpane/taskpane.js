@@ -257,11 +257,13 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 function fetchHistory(token, conversationId) {
-    return fetch(`${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`, {
+    return fetch(`${CONVERSATION_URL}/history`, {
+        method:"POST",
         headers: { 
             Authorization:"Bearer "+ token, 
             "ngrok-skip-browser-warning":"true" 
-        }
+        },
+        body: JSON.stringify({ conversationId })
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
