@@ -257,7 +257,7 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 function fetchHistory(token, conversationId) {
-    return fetch(`${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}`, {
+    return fetch(`${CONVERSATION_URL}?conversation_id=${encodeURIComponent(conversationId)}`, {
         method: "GET",
         headers: { Authorization:"Bearer "+ token, "ngrok-skip-browser-warning":"true" }
     });
