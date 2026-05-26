@@ -100,7 +100,8 @@
                 </div>
             </div>
 
-        </div><!-- /view-compose -->
+        </div>
+        <!-- /view-compose -->
 
         <!-- ══════════════════════════════════════════════════════
              READ INIT VIEW  (loading screen)
@@ -129,6 +130,12 @@
              B. Attachments (individual / bundle)
              ══════════════════════════════════════════════════════ -->
         <div id="view-read" class="view hidden">
+
+            <!-- Previous Chats (populated from Custom Properties) -->
+            <div id="read-prev-section" class="read-section hidden">
+                <div class="read-section-label">Previous Chats</div>
+                <div id="read-prev-list" class="prev-chat-list"></div>
+            </div>
 
             <!-- A. Share link found in email body -->
             <div id="read-share-section" class="read-section hidden">

@@ -703,3 +703,55 @@ html, body {
 }
 .btn-upload-share:hover    { background: #1565C0 !important; }
 .btn-upload-share:disabled { background: #90A4AE !important; }
+
+/* ── Previous Chats section ──────────────────────────────────────── */
+.prev-chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.prev-chat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e3e8f0;
+    border-radius: 8px;
+    padding: 9px 12px;
+}
+
+.prev-chat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.prev-chat-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prev-chat-meta {
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+.btn-resume {
+    flex-shrink: 0;
+    padding: 5px 11px;
+    background: #E8F0FE;
+    color: #0D47A1;
+    border: 1px solid #C5D8FB;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-resume:hover { background: #d2e3fc; }
