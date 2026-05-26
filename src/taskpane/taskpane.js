@@ -791,16 +791,27 @@ async function enterChat(conversationId, documentId, token) {
         appendMessage("ai", "Cannot start chat: document ID is missing. Please re-share the document."); return;
     }
     showTypingIndicator();
+    // Step 1: GET /v1/conversation/{id}
+    // If the conversation already has assistant messages, welcome was already
+    // called once — restore history and skip welcome entirely.
     try {
         const histResp = await fetchHistory(token, conversationId);
         if (histResp.ok) {
             const conv  = await histResp.json();
             const msgs  = Array.isArray(conv.messages) ? conv.messages : [];
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
-            if (hasAI) { hideTypingIndicator(); restoreConversationHistory(msgs); return; }
+            if (hasAI) {
+                hideTypingIndicator();
+                restoreConversationHistory(msgs); // skip welcome
+                return;
+            }
         }
-    } catch (histErr) { console.warn("History fetch failed (non-fatal):", histErr.message); }
+    } catch (histErr) {
+        // Non-fatal: CORS / network / 4xx
+        console.warn("History fetch failed (non-fatal):", histErr.message);
+    }
 
+    // Step 2: No prior history — call welcome (first open only)
     try {
         const resp    = await fetchWelcome(token, conversationId, documentId);
         const rawText = await resp.text();
