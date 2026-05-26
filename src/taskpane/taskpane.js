@@ -2,6 +2,10 @@
 const PROXY_BASE       = "https://headphone-crust-stipulate.ngrok-free.dev";
 const BLUE_BASE        = "https://demo.smartblue.ai";
 
+// Domains whose /conversation URLs are treated as SmartBlue share links.
+// Only emails containing a link on one of these domains will show "Start Chat".
+const SMARTBLUE_DOMAINS = ["demo.smartblue.ai", "try.smartblue.ai", "app.smartblue.ai"];
+
 const AUTH_URL         = `${PROXY_BASE}/v1/authenticate`;
 const UPLOAD_URL       = `${PROXY_BASE}/v1/document/upload`;
 const BUNDLE_ADD_URL   = `${PROXY_BASE}/v1/document/bundle/add`;
@@ -103,18 +107,20 @@ function parseDocUrl(rawUrl) {
     try {
         const url = rawUrl.replace(/[>)"'\s]+$/, "").replace(/&amp;/gi, "&");
         const u   = new URL(url);
-        const sp  = u.searchParams;
+
+        // Only treat URLs from known SmartBlue domains as share links
+        if (!SMARTBLUE_DOMAINS.includes(u.hostname)) {
+            return { conversationId: null, docId: null, shareUrl: null };
+        }
+
+        const sp = u.searchParams;
         const conversationId =
             sp.get("conversation-id") || sp.get("conversation_id") ||
             sp.get("conversationId")  || sp.get("cid") || null;
         const docId =
             sp.get("doc-id") || sp.get("doc_id") || sp.get("documentId") || sp.get("did") || null;
+
         if (conversationId) return { conversationId, docId, shareUrl: url };
-        const segments = u.pathname.split("/").filter(Boolean);
-        if (segments.length >= 2)
-            return { conversationId: segments[segments.length - 2], docId: segments[segments.length - 1], shareUrl: url };
-        if (segments.length === 1)
-            return { conversationId: segments[0], docId: null, shareUrl: url };
     } catch (_) {}
     return { conversationId: null, docId: null, shareUrl: null };
 }
