@@ -258,7 +258,7 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
 }
 function fetchHistory(token, conversationId) {
     return fetch(`${CONVERSATION_URL}/history`, {
-        method:"POST",
+        method:"GET",
         headers: { 
             Authorization:"Bearer "+ token, 
             "ngrok-skip-browser-warning":"true" 
