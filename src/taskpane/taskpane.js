@@ -12,7 +12,7 @@ const BUNDLE_ADD_URL   = `${PROXY_BASE}/v1/document/bundle/add`;
 const SHARE_URL        = `${PROXY_BASE}/v1/document/share`;
 const WELCOME_URL      = `${PROXY_BASE}/v1/conversation/ask/welcome`;
 const ASK_URL          = `${PROXY_BASE}/v1/conversation/ask/question`;
-const CONVERSATION_URL = `${PROXY_BASE}/v1/conversation`;
+const CONVERSATION_URL = `${PROXY_BASE}/v1/conversation/history`;
 
 const AZURE_CLIENT_ID  = "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7";
 const AZURE_TENANT_ID  = "f895e126-dbc8-41bb-b00b-5cd2172346f9";
@@ -257,16 +257,15 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 function fetchHistory(token, conversationId) {
-    return fetch(`${CONVERSATION_URL}/history`, {
+    return fetch(`${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}`, {
         method: "GET",
-        headers: { Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" },
-        body: JSON.stringify({ conversationId })
+        headers: { Authorization:"Bearer "+ token, "ngrok-skip-browser-warning":"true" }
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
     return fetch(WELCOME_URL, {
         method:"POST",
-        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" },
+        headers: { "Content-Type":"application/json", Authorization:"Bearer "+ token, "ngrok-skip-browser-warning":"true" },
         body: JSON.stringify({ conversationId, documentId }),
     });
 }
@@ -810,7 +809,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs); // skip welcome
+                restoreConversationHistory(msgs);
                 return;
             }
         }
