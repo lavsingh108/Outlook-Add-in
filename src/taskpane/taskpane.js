@@ -258,13 +258,13 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
 }
 function fetchHistory(token, conversationId) {
     return fetch(`${CONVERSATION_URL}/${encodeURIComponent(conversationId)}`, {
-        headers: { Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" }
+        headers: { Authorization:"Bearer "+token }
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
     return fetch(WELCOME_URL, {
         method:"POST",
-        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" },
+        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token },
         body: JSON.stringify({ conversationId, documentId }),
     });
 }
