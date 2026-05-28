@@ -161,10 +161,11 @@ function formatBytes(bytes) {
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / 1048576).toFixed(1) + " MB";
 }
-function formatResponse(raw) {
+function formatResponse(raw, conversationId, documentId) {
     let text = raw.replace(
         /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
-        '<span class="page-ref">pg $1</span>'
+        // '<span class="page-ref">pg $1</span>'
+        `<a href="https://demo.smartblue.ai/conversation?conversation-id=${conversationId}&doc-id=${documentId}" class="page-ref" data-page="$1">pg $1</a>`
     );
     text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     const lines = text.split(/\n/);
@@ -297,13 +298,13 @@ function showTypingIndicator() {
     hist.appendChild(div); hist.scrollTop = hist.scrollHeight;
 }
 function hideTypingIndicator() { const el = document.getElementById("typing-indicator"); if (el) el.remove(); }
-function appendMessage(role, text) {
+function appendMessage(role, text, conversationId, documentId) {
     const hist = document.getElementById("chat-history");
     const div  = document.createElement("div");
     if (role === "user") {
         div.className = "msg-user";
         const p = document.createElement("p"); p.textContent = text; div.appendChild(p);
-    } else { div.className = "msg-ai"; div.innerHTML = formatResponse(text); }
+    } else { div.className = "msg-ai"; div.innerHTML = formatResponse(text, conversationId, documentId); }
     hist.appendChild(div); hist.scrollTop = hist.scrollHeight;
 }
 function hideSuggestions() { const box = document.getElementById("suggestions"); box.classList.add("hidden"); box.innerHTML = ""; }
@@ -320,11 +321,11 @@ function renderSuggestions(tags) {
     });
     box.classList.remove("hidden");
 }
-function restoreConversationHistory(messages) {
+function restoreConversationHistory(messages, conversationId, documentId) {
     messages.forEach(msg => {
         const text = msg.text || "";
         if (!text.trim()) return;
-        appendMessage(msg.sender === "assistant" ? "ai" : "user", text);
+        appendMessage(msg.sender === "assistant" ? "ai" : "user", text, conversationId, documentId);
     });
     const lastAI = [...messages].reverse().find(m => m.sender === "assistant");
     if (lastAI && Array.isArray(lastAI.tags) && lastAI.tags.length) renderSuggestions(lastAI.tags);
@@ -847,7 +848,7 @@ function copyResultLink() {
 // ══════════════════════════════════════════════════════════════════════════
 async function enterChat(conversationId, documentId, token) {
     state.currentConversationId = conversationId;
-    state.currentDocumentId     = documentId;
+    state.currentDocumentId = documentId;
     document.getElementById("view-read-init").classList.add("hidden");
     document.getElementById("view-read").classList.add("hidden");
     document.getElementById("view-compose").classList.add("hidden");
@@ -870,7 +871,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs); // skip welcome
+                restoreConversationHistory(msgs, conversationId, documentId); // skip welcome
                 return;
             }
         }
