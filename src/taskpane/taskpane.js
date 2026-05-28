@@ -447,9 +447,8 @@ function renderShareSection(shareInfo) {
 function insertShareLinkIntoBody(link, filename) {
     return new Promise((resolve) => {
         const html = `<p style="font-family:sans-serif;margin:8px 0;">`
-                   + `<a href="${link}" target="_blank" style="color:#0D47A1;font-size:14px;font-weight:500;text-decoration:none;">`
-                   + `${filename}</a></p>`
-                   + `<p>Click on this link to view this document in the BlueAI</p>`;
+                   + `<a href="${link}" target="_blank" style="color:#0D47A1;font-weight:600;text-decoration:none;">`
+                   + `\uD83D\uDCC4 ${filename} \u2014 View on SmartBlue</a></p>`;
         Office.context.mailbox.item.body.setSelectedDataAsync(html, { coercionType:Office.CoercionType.Html }, (result) => {
             if (result.status === Office.AsyncResultStatus.Failed) {
                 Office.context.mailbox.item.body.setSelectedDataAsync(`\n${filename}: ${link}\n`,
@@ -584,15 +583,19 @@ function renderPreviousChats() {
     section.classList.remove("hidden");
 }
 function loadReadAttachments() {
-    const attachments = Office.context.mailbox.item.attachments || [];
-    const listDiv     = document.getElementById("attachment-list");
-    const footerDiv   = document.getElementById("bundle-footer");
+    const attachments   = Office.context.mailbox.item.attachments || [];
+    const listDiv       = document.getElementById("attachment-list");
+    const footerDiv     = document.getElementById("bundle-footer");
+    const attachSection = document.getElementById("read-attach-section");
+    const divider       = document.getElementById("read-or-divider");
     if (!attachments.length) {
-        listDiv.innerHTML = "<p class='att-empty'>No attachments found.</p>";
-        footerDiv.classList.add("hidden");
-        document.getElementById("btn-upload-bundle").disabled = true;
+        // No attachments — hide the entire section and the divider above it
+        if (attachSection) attachSection.classList.add("hidden");
+        if (divider)       divider.classList.add("hidden");
         return;
     }
+    // Has attachments — make sure section is visible
+    if (attachSection) attachSection.classList.remove("hidden");
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
         document.getElementById("btn-upload-bundle").disabled = false;
