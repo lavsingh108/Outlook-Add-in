@@ -767,6 +767,8 @@ function renderComposeAttachments(attachments) {
     }
     if(attachments.length === 1) {
         document.getElementById("chk-compose-bulk").disabled = true;
+    } else {
+        document.getElementById("chk-compose-bulk").disabled = false;
     }
     list.innerHTML = "";
     if (isComposeBulkMode()) {
