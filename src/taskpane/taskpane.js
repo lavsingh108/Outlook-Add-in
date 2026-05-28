@@ -765,6 +765,9 @@ function renderComposeAttachments(attachments) {
         document.getElementById("btn-compose-upload").disabled = true;
         return;
     }
+    if(attachments.length === 1) {
+        document.getElementById("chk-compose-bulk").disabled = false;
+    }
     list.innerHTML = "";
     if (isComposeBulkMode()) {
         document.getElementById("compose-bundle-footer").classList.remove("hidden");
