@@ -162,10 +162,10 @@ function formatBytes(bytes) {
     return (bytes / 1048576).toFixed(1) + " MB";
 }
 function formatResponse(raw, conversationId, documentId) {
+    const doc_url = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
     let text = raw.replace(
         /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
-        // '<span class="page-ref">pg $1</span>'
-        `<a href="https://demo.smartblue.ai/conversation?conversation-id=${conversationId}&doc-id=${documentId}" target="_blank" class="page-ref" data-page="$1">pg $1</a>`
+        `<a href="${doc_url}" target="_blank" class="page-ref" data-page="$1">pg $1</a>`
     );
     text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     const lines = text.split(/\n/);
