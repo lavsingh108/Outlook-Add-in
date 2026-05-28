@@ -52,15 +52,17 @@
             <!-- Documents with Individual / Bundle toggle -->
             <div class="compose-section compose-section-grow">
                 <div class="compose-section-header">
-                    <span class="compose-section-title">Documents</span>
-                    <span class="compose-badge" id="attachments-count"></span>
-                    <div class="mode-bar-mini">
-                        <span class="mode-label" id="clbl-individual">Individual</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="chk-compose-bulk" checked />
-                            <span class="toggle-track"><span class="toggle-thumb"></span></span>
-                        </label>
-                        <span class="mode-label active" id="clbl-bundle">Bundle</span>
+                    <div class="compose-header-container">
+                        <span class="compose-section-title">Documents</span>
+                        <span class="compose-badge" id="attachments-count"></span>
+                        <div class="mode-bar-mini">
+                            <!-- <span class="mode-label" id="clbl-individual">Individual</span> -->
+                             <span class="mode-label active" id="clbl-bundle">Bundle</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="chk-compose-bulk" checked />
+                                <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div id="compose-attachments" class="compose-att-list">
