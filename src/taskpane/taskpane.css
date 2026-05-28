@@ -388,8 +388,8 @@ html, body {
 .compose-section-grow  { flex: 1 1 auto; min-height: 0; }
 
 .compose-section-header { display: flex; align-items: center; gap: 6px; }
-
-.compose-header-container { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.compose-header-container { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 6px; }
+.compose-header-title { display: flex; align-items: center; gap: 6px; }
 
 .compose-section-title {
     font-size: 11px; font-weight: 700;
