@@ -79,18 +79,17 @@
 
             <!-- Result card -->
             <div id="compose-result" class="result-card hidden">
-                <!-- <div class="result-top">
+                <div class="result-top">
                     <svg class="result-check" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" stroke-width="2.5"
                          stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
                     </svg>
                     <span class="result-inserted-text">Link inserted into email body</span>
-                </div> -->
+                </div>
                 <div class="result-label">Share Link</div>
                 <div class="result-link-row">
-                    <!-- <div class="result-link" id="result-link-text"></div> -->
-                     <div class="result-link">Document URL</div>
+                    <div class="result-link" id="result-link-text"></div>
                     <button class="btn-copy" id="btn-copy-link" title="Copy link">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -101,8 +100,7 @@
                 </div>
             </div>
 
-        </div>
-        <!-- /view-compose -->
+        </div><!-- /view-compose -->
 
         <!-- ══════════════════════════════════════════════════════
              READ INIT VIEW  (loading screen)
@@ -132,7 +130,7 @@
              ══════════════════════════════════════════════════════ -->
         <div id="view-read" class="view hidden">
 
-            <!-- Previous Chats (populated from Custom Properties) -->
+            <!-- Previous Chats (from Custom Properties) -->
             <div id="read-prev-section" class="read-section hidden">
                 <div class="read-section-label">Previous Chats</div>
                 <div id="read-prev-list" class="prev-chat-list"></div>
@@ -142,6 +140,7 @@
             <div id="read-share-section" class="read-section hidden">
                 <div class="read-section-label">Shared Document</div>
                 <div id="read-share-card" class="read-share-card">
+                    <!-- populated by JS -->
                 </div>
             </div>
 

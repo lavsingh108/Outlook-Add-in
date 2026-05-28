@@ -12,7 +12,7 @@ const BUNDLE_ADD_URL   = `${PROXY_BASE}/v1/document/bundle/add`;
 const SHARE_URL        = `${PROXY_BASE}/v1/document/share`;
 const WELCOME_URL      = `${PROXY_BASE}/v1/conversation/ask/welcome`;
 const ASK_URL          = `${PROXY_BASE}/v1/conversation/ask/question`;
-const CONVERSATION_URL = `${PROXY_BASE}/v1/conversation/history`;
+const CONVERSATION_URL = `${PROXY_BASE}/v1/conversation`;
 
 const AZURE_CLIENT_ID  = "c49037f2-0565-4a5c-8b17-f9b8b3ee35c7";
 const AZURE_TENANT_ID  = "f895e126-dbc8-41bb-b00b-5cd2172346f9";
@@ -257,15 +257,15 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 function fetchHistory(token, conversationId) {
-    return fetch(`${CONVERSATION_URL}?conversation_id=${encodeURIComponent(conversationId)}`, {
-        method: "GET",
-        headers: { Authorization:"Bearer "+ token, "ngrok-skip-browser-warning":"true" }
+    // Matches server route: GET /v1/conversation/history?conversation_id={id}
+    return fetch(`${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}`, {
+        headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" },
     });
 }
 function fetchWelcome(token, conversationId, documentId) {
     return fetch(WELCOME_URL, {
         method:"POST",
-        headers: { "Content-Type":"application/json", Authorization:"Bearer "+ token, "ngrok-skip-browser-warning":"true" },
+        headers: { "Content-Type":"application/json", Authorization:"Bearer "+token, "ngrok-skip-browser-warning":"true" },
         body: JSON.stringify({ conversationId, documentId }),
     });
 }
@@ -496,7 +496,51 @@ function initRead() {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
             if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
-            loadCustomProps().then(cp => { _customProps = cp; renderPreviousChats(); }).catch(() => {});
+
+            loadCustomProps()
+                .then(cp => {
+                    _customProps = cp;
+
+                    // Auto-open chat if we have enough context — no manual step needed:
+                    // Priority 1: shared URL in email body (has conversationId + docId)
+                    // Priority 2: most recent previous chat from custom props
+                    if (shareInfo && shareInfo.conversationId && shareInfo.docId) {
+                        getAuthToken()
+                            .then(token => enterChat(shareInfo.conversationId, shareInfo.docId, token))
+                            .catch(err => {
+                                console.warn("Auto-open from share link failed:", err.message);
+                                renderPreviousChats();
+                            });
+                        return; // skip rendering prev chats / attachments — enterChat shows the chat view
+                    }
+
+                    const records = Object.values(getConversationMap(cp))
+                        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+                    if (records.length > 0) {
+                        // Auto-resume the most recent conversation
+                        const latest = records[0];
+                        getAuthToken()
+                            .then(token => enterChat(latest.conversationId, latest.documentId, token))
+                            .catch(err => {
+                                console.warn("Auto-resume failed:", err.message);
+                                renderPreviousChats();
+                            });
+                        return;
+                    }
+
+                    // No context — show normal read view
+                    renderPreviousChats();
+                })
+                .catch(() => {
+                    // Custom props unavailable — fall through to normal UI
+                    if (shareInfo && shareInfo.conversationId && shareInfo.docId) {
+                        getAuthToken()
+                            .then(token => enterChat(shareInfo.conversationId, shareInfo.docId, token))
+                            .catch(err => console.warn("Auto-open failed:", err.message));
+                    }
+                });
+
             loadReadAttachments();
             const atts = Office.context.mailbox.item.attachments || [];
             if (shareInfo && shareInfo.conversationId && atts.length > 0)
@@ -669,16 +713,27 @@ function loadComposeData(isRefresh) {
             .filter(e => { if (!e || seen.has(e)) return false; seen.add(e); return true; });
         renderComposeRecipients(toList, ccList, bccList);
         _composeAttachments = attachments;
+
+        // Auto-select mode based on attachment count:
+        // 1 attachment → Individual, 2+ → Bundle
+        const bulkChk = document.getElementById("chk-compose-bulk");
+        if (attachments.length === 1) {
+            bulkChk.checked = false;
+        } else if (attachments.length > 1) {
+            bulkChk.checked = true;
+        }
+        onComposeToggleMode();  // sync labels + footer visibility
+
         renderComposeAttachments(_composeAttachments);
         document.getElementById("btn-refresh").classList.remove("spinning");
     });
 }
-function renderComposeRecipients(toList, ccList, bccList) {
+function renderComposeRecipients(toList, ccList, bccList = []) {
     const area  = document.getElementById("compose-recipients");
     const badge = document.getElementById("recipients-count");
     const total = toList.length + ccList.length + bccList.length;
     badge.textContent = total || "";
-    if (total === 0) { area.innerHTML = `<div class="compose-empty">No recipients yet. Add To / CC / BCC addresses then click &#8635; Refresh.</div>`; return; }
+    if (total === 0) { area.innerHTML = `<div class="compose-empty">No recipients yet. Add To / CC addresses then click &#8635; Refresh.</div>`; return; }
     area.innerHTML = "";
     const buildRow = (label, list) => {
         if (!list.length) return;
@@ -811,7 +866,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs);
+                restoreConversationHistory(msgs); // skip welcome
                 return;
             }
         }
