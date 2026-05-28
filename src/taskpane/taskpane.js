@@ -165,7 +165,7 @@ function formatResponse(raw, conversationId, documentId) {
     let text = raw.replace(
         /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
         // '<span class="page-ref">pg $1</span>'
-        `<a href="https://demo.smartblue.ai/conversation?conversation-id=${conversationId}&doc-id=${documentId}" class="page-ref" data-page="$1">pg $1</a>`
+        `<a href="https://demo.smartblue.ai/conversation?conversation-id=${conversationId}&doc-id=${documentId}" target="_blank" class="page-ref" data-page="$1">pg $1</a>`
     );
     text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     const lines = text.split(/\n/);
