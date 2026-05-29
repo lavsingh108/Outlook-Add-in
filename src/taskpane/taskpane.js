@@ -242,6 +242,25 @@ async function uploadSupportingById(att, conversationId, token) {
     if (!resp.ok) console.warn("Supporting upload failed:", att.name, await resp.text());
 }
 
+// ── Remove attachment helper ──────────────────────────────────────────────
+// Only works for attachments the add-in can control; user-added attachments
+// will be rejected by Outlook — the error is caught and warned, not thrown.
+function removeAttachmentIfRequested(attachmentId) {
+    const checkbox = document.getElementById("chk-include-attachment");
+    if (!checkbox || !checkbox.checked) return Promise.resolve();
+    return new Promise((resolve) => {
+        Office.context.mailbox.item.removeAttachmentAsync(attachmentId, (result) => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) {
+                console.log("Attachment removed from email");
+            } else {
+                // User-added attachments cannot be removed by the add-in — non-fatal
+                console.warn("Remove attachment failed (non-fatal):", result.error?.message);
+            }
+            resolve(); // always continue, never block the upload flow
+        });
+    });
+}
+
 // ── API calls ──────────────────────────────────────────────────────────────
 async function callShareApi(token, conversationId, docId, senderEmail, recipients) {
     const payload = { sender_email: senderEmail, recipients };
@@ -826,29 +845,15 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
+        await removeAttachmentIfRequested(primaryAtt.id);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
                 label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
-        bundleFooter.hidden = true;
-        showComposeStatus(""); 
-        renderComposeResult(documentURL);
-
-        const removeAttachment = document.getElementById("compose-attachment-option").checked;
-        if (removeAttachment) {
-            await new Promise((resolve, reject) => {
-                Office.context.mailbox.item.removeAttachmentAsync(primaryAtt.id, (result) => {
-                    if (result.status === Office.AsyncResultStatus.Succeeded) {
-                        resolve();
-                    } else {
-                        console.warn("Failed to remove attachment:", result.error);
-                        reject(new Error("Failed to remove attachment: " + result.error.message));
-                    }
-                });
-            });
-        }
+        document.getElementById("compose-bundle-footer").classList.add("hidden");
+        showComposeStatus(""); renderComposeResult(documentURL);
     } catch (err) {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
@@ -867,6 +872,7 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
+        await removeAttachmentIfRequested(att.id);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -915,7 +921,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs); // skip welcome
+                restoreConversationHistory(msgs, conversationId, documentId); // skip welcome
                 return;
             }
         }
