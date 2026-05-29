@@ -707,7 +707,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick        = () => loadComposeData(true);
+    document.getElementById("btn-refresh").onclick = () => { state.suppressAttachmentRefresh = false; loadComposeData(true); };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -822,7 +822,7 @@ function renderComposeAttachments(attachments) {
     }
 }
 async function handleComposeBundleUpload() {
-    const bundleFooter = document.getElementById("compose-bundle-footer");
+        const bundleFooter = document.getElementById("compose-bundle-footer");
     const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
     if (!primaryRadio) { showComposeStatus("Please select a primary document."); return; }
     const primaryIndex  = parseInt(primaryRadio.value);
@@ -849,7 +849,6 @@ async function handleComposeBundleUpload() {
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested(allAttIds);
-        state.suppressAttachmentRefresh = false;
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -878,7 +877,6 @@ async function handleComposeSingleUpload(index) {
         await insertShareLinkIntoBody(documentURL, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
-        state.suppressAttachmentRefresh = false;
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -904,7 +902,7 @@ function copyResultLink() {
 // ══════════════════════════════════════════════════════════════════════════
 async function enterChat(conversationId, documentId, token) {
     state.currentConversationId = conversationId;
-    state.currentDocumentId = documentId;
+    state.currentDocumentId     = documentId;
     document.getElementById("view-read-init").classList.add("hidden");
     document.getElementById("view-read").classList.add("hidden");
     document.getElementById("view-compose").classList.add("hidden");
