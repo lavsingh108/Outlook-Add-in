@@ -799,7 +799,6 @@ function renderComposeRecipients(toList, ccList, bccList = []) {
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
     const badge = document.getElementById("attachments-count");
-    const bulkSwitch = document.getElementById("chk-compose-bulk");
     badge.textContent = attachments.length || "";
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
@@ -847,8 +846,10 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
-        const documentIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
-        await removeAttachmentIfRequested(documentIds);
+        const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
+        state.suppressAttachmentRefresh = true;
+        await removeAttachmentIfRequested(allAttIds);
+        state.suppressAttachmentRefresh = false;
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -875,7 +876,9 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
+        state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
+        state.suppressAttachmentRefresh = false;
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
