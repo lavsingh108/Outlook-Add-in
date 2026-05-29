@@ -835,6 +835,20 @@ async function handleComposeBundleUpload() {
         bundleFooter.hidden = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
+
+        const removeAttachment = document.getElementById("compose-attachment-option").checked;
+        if (removeAttachment) {
+            await new Promise((resolve, reject) => {
+                Office.context.mailbox.item.removeAttachmentAsync(primaryAtt.id, (result) => {
+                    if (result.status === Office.AsyncResultStatus.Succeeded) {
+                        resolve();
+                    } else {
+                        console.warn("Failed to remove attachment:", result.error);
+                        reject(new Error("Failed to remove attachment: " + result.error.message));
+                    }
+                });
+            });
+        }
     } catch (err) {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
