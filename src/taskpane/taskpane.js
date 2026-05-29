@@ -802,6 +802,7 @@ function renderComposeAttachments(attachments) {
     }
 }
 async function handleComposeBundleUpload() {
+    const bundleFooter = document.getElementById("compose-bundle-footer");
     const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
     if (!primaryRadio) { showComposeStatus("Please select a primary document."); return; }
     const primaryIndex  = parseInt(primaryRadio.value);
@@ -831,7 +832,9 @@ async function handleComposeBundleUpload() {
                 label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
-        showComposeStatus(""); renderComposeResult(documentURL);
+        bundleFooter.hidden = true;
+        showComposeStatus(""); 
+        renderComposeResult(documentURL);
     } catch (err) {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
@@ -856,7 +859,8 @@ async function handleComposeSingleUpload(index) {
                 label: att.name, uploadType: "single", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
-        showComposeStatus(""); renderComposeResult(documentURL);
+        showComposeStatus(""); 
+        renderComposeResult(documentURL);
     } catch (err) {
         console.error("Compose single upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = false); }
