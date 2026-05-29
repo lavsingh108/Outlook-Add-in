@@ -674,7 +674,9 @@ function switchToReadView() {
     state.currentConversationId = null; state.currentDocumentId = null;
     const shareBtn = document.getElementById("btn-share-chat");
     if (shareBtn) shareBtn.disabled = false;
-    renderPreviousChats(); loadReadAttachments(); showReadStatus("");
+    renderPreviousChats(); 
+    loadReadAttachments(); 
+    showReadStatus("");
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -776,6 +778,7 @@ function renderComposeRecipients(toList, ccList, bccList = []) {
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
     const badge = document.getElementById("attachments-count");
+    const bulkSwitch = document.getElementById("chk-compose-bulk");
     badge.textContent = attachments.length || "";
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
@@ -783,8 +786,10 @@ function renderComposeAttachments(attachments) {
         document.getElementById("btn-compose-upload").disabled = true;
         return;
     }
-    // Disable the toggle when there is only one attachment — bundle makes no sense
-    document.getElementById("chk-compose-bulk").disabled = (attachments.length === 1);
+    if(attachments.length === 1) {
+        bulkSwitch.checked = false;
+        bulkSwitch.disabled = true;
+    } else bulkSwitch.disabled = false;
 
     list.innerHTML = "";
     if (isComposeBulkMode()) {
