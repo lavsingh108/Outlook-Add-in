@@ -707,7 +707,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick = () => { state.suppressAttachmentRefresh = false; loadComposeData(true); };
+    document.getElementById("btn-refresh").onclick        = () => loadComposeData(true);
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -799,6 +799,7 @@ function renderComposeRecipients(toList, ccList, bccList = []) {
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
     const badge = document.getElementById("attachments-count");
+    const bulkSwitch = document.getElementById("chk-compose-bulk");
     badge.textContent = attachments.length || "";
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
@@ -822,7 +823,7 @@ function renderComposeAttachments(attachments) {
     }
 }
 async function handleComposeBundleUpload() {
-        const bundleFooter = document.getElementById("compose-bundle-footer");
+    const bundleFooter = document.getElementById("compose-bundle-footer");
     const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
     if (!primaryRadio) { showComposeStatus("Please select a primary document."); return; }
     const primaryIndex  = parseInt(primaryRadio.value);
@@ -847,7 +848,6 @@ async function handleComposeBundleUpload() {
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
-        state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested(allAttIds);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
@@ -875,7 +875,6 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
-        state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
@@ -902,7 +901,7 @@ function copyResultLink() {
 // ══════════════════════════════════════════════════════════════════════════
 async function enterChat(conversationId, documentId, token) {
     state.currentConversationId = conversationId;
-    state.currentDocumentId     = documentId;
+    state.currentDocumentId = documentId;
     document.getElementById("view-read-init").classList.add("hidden");
     document.getElementById("view-read").classList.add("hidden");
     document.getElementById("view-compose").classList.add("hidden");
