@@ -689,12 +689,30 @@ function initCompose() {
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
     loadComposeData(false);
+
+    // Live sync — fire loadComposeData whenever the user adds/removes
+    // an attachment or changes recipients, removing the need to manually refresh.
+    // Requires Mailbox 1.8 (AttachmentsChanged) / 1.7 (RecipientsChanged).
+    // The refresh button stays as a fallback for older clients.
+    if (Office.context.requirements.isSetSupported("Mailbox", "1.8")) {
+        Office.context.mailbox.item.addHandlerAsync(
+            Office.EventType.AttachmentsChanged,
+            () => loadComposeData(true)
+        );
+    }
+    if (Office.context.requirements.isSetSupported("Mailbox", "1.7")) {
+        Office.context.mailbox.item.addHandlerAsync(
+            Office.EventType.RecipientsChanged,
+            () => loadComposeData(true)
+        );
+    }
 }
 function isComposeBulkMode() { return document.getElementById("chk-compose-bulk").checked; }
 function onComposeToggleMode() {
     const bulk = isComposeBulkMode();
-    document.getElementById("clbl-bundle").classList.toggle("active", bulk);
-    document.getElementById("clbl-individual").classList.toggle("active", !bulk);
+    // Elements may be absent if the HTML hides/removes them — use optional chaining
+    document.getElementById("clbl-bundle")?.classList.toggle("active", bulk);
+    document.getElementById("clbl-individual")?.classList.toggle("active", !bulk);
     document.getElementById("compose-bundle-footer").classList.toggle("hidden", !bulk);
     renderComposeAttachments(_composeAttachments);
 }
@@ -765,11 +783,9 @@ function renderComposeAttachments(attachments) {
         document.getElementById("btn-compose-upload").disabled = true;
         return;
     }
-    if(attachments.length === 1) {
-        document.getElementById("chk-compose-bulk").disabled = true;
-    } else {
-        document.getElementById("chk-compose-bulk").disabled = false;
-    }
+    // Disable the toggle when there is only one attachment — bundle makes no sense
+    document.getElementById("chk-compose-bulk").disabled = (attachments.length === 1);
+
     list.innerHTML = "";
     if (isComposeBulkMode()) {
         document.getElementById("compose-bundle-footer").classList.remove("hidden");
@@ -862,7 +878,7 @@ async function enterChat(conversationId, documentId, token) {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     if (!documentId) {
-        appendMessage("ai", "Cannot start chat: document ID is missing. Please re-share the document."); return;
+        appendMessage("ai", "Cannot start chat: document ID is missing. Please re-share the document.", conversationId, documentId); return;
     }
     showTypingIndicator();
     // Step 1: GET /v1/conversation/{id}
@@ -876,7 +892,7 @@ async function enterChat(conversationId, documentId, token) {
             const hasAI = msgs.some(m => m.sender === "assistant" || m.role === "assistant");
             if (hasAI) {
                 hideTypingIndicator();
-                restoreConversationHistory(msgs, conversationId, documentId); // skip welcome
+                restoreConversationHistory(msgs); // skip welcome
                 return;
             }
         }
@@ -892,27 +908,27 @@ async function enterChat(conversationId, documentId, token) {
         hideTypingIndicator();
         if (!resp.ok) {
             console.error("Welcome API failed:", resp.status, rawText);
-            appendMessage("ai", "Could not load welcome message (" + resp.status + "). You can still ask questions below.");
+            appendMessage("ai", "Could not load welcome message (" + resp.status + "). You can still ask questions below.", conversationId, documentId);
             return;
         }
         let data;
-        try { data = JSON.parse(rawText); } catch { appendMessage("ai", "Hello! How can I help you with this document?"); return; }
+        try { data = JSON.parse(rawText); } catch { appendMessage("ai", "Hello! How can I help you with this document?", conversationId, documentId); return; }
         const welcomeMsg = data.answer || data.response || data.message || data.text ||
             data.content || data.welcomeText || data.welcome_text || (typeof data === "string" ? data : null);
-        appendMessage("ai", welcomeMsg || "Hello! How can I help you with this document?");
+        appendMessage("ai", welcomeMsg || "Hello! How can I help you with this document?", conversationId, documentId);
         const tags = Array.isArray(data.tags) ? data.tags : [];
         if (tags.length) renderSuggestions(tags);
     } catch (err) {
         hideTypingIndicator();
         console.error("enterChat welcome error:", err);
-        appendMessage("ai", "Network error. You can still ask questions below.");
+        appendMessage("ai", "Network error. You can still ask questions below.", conversationId, documentId);
     }
 }
 async function sendChatMessage() {
     const input = document.getElementById("user-input");
     const text  = input.value.trim();
     if (!text) return;
-    hideSuggestions(); appendMessage("user", text); input.value = "";
+    hideSuggestions(); appendMessage("user", text, state.currentConversationId, state.currentDocumentId); input.value = "";
     document.getElementById("btn-send").disabled = true;
     showTypingIndicator();
     try {
@@ -921,10 +937,10 @@ async function sendChatMessage() {
         hideTypingIndicator();
         if (!resp.ok) throw new Error("Ask failed (" + resp.status + "): " + await resp.text());
         const data = await resp.json();
-        appendMessage("ai", data.answer || data.response || "No response received.");
+        appendMessage("ai", data.answer || data.response || "No response received.", state.currentConversationId, state.currentDocumentId);
         const tags = Array.isArray(data.tags) ? data.tags : [];
         if (tags.length) renderSuggestions(tags);
     } catch (err) {
-        hideTypingIndicator(); appendMessage("ai", "Error: " + err.message); clearToken();
+        hideTypingIndicator(); appendMessage("ai", "Error: " + err.message, state.currentConversationId, state.currentDocumentId); clearToken();
     } finally { document.getElementById("btn-send").disabled = false; }
 }
