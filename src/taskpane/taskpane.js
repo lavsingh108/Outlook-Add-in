@@ -245,20 +245,22 @@ async function uploadSupportingById(att, conversationId, token) {
 // ── Remove attachment helper ──────────────────────────────────────────────
 // Only works for attachments the add-in can control; user-added attachments
 // will be rejected by Outlook — the error is caught and warned, not thrown.
-function removeAttachmentIfRequested(attachmentId) {
+async function removeAttachmentIfRequested(attachmentIds) {
     const checkbox = document.getElementById("chk-include-attachment");
-    if (!checkbox || !checkbox.checked) return Promise.resolve();
-    return new Promise((resolve) => {
-        Office.context.mailbox.item.removeAttachmentAsync(attachmentId, (result) => {
-            if (result.status === Office.AsyncResultStatus.Succeeded) {
-                console.log("Attachment removed from email");
-            } else {
-                // User-added attachments cannot be removed by the add-in — non-fatal
-                console.warn("Remove attachment failed (non-fatal):", result.error?.message);
-            }
-            resolve(); // always continue, never block the upload flow
+    if (!checkbox || !checkbox.checked) return;
+    const ids = Array.isArray(attachmentIds) ? attachmentIds : [attachmentIds];
+    for (const id of ids) {
+        await new Promise((resolve) => {
+            Office.context.mailbox.item.removeAttachmentAsync(id, (result) => {
+                if (result.status === Office.AsyncResultStatus.Succeeded) {
+                    console.log("Attachment removed:", id);
+                } else {
+                    console.warn("Remove attachment failed (non-fatal):", id, result.error?.message);
+                }
+                resolve();
+            });
         });
-    });
+    }
 }
 
 // ── API calls ──────────────────────────────────────────────────────────────
@@ -845,7 +847,8 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
-        await removeAttachmentIfRequested(primaryAtt.id);
+        const documentIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
+        await removeAttachmentIfRequested(documentIds);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -872,7 +875,7 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
-        await removeAttachmentIfRequested(att.id);
+        await removeAttachmentIfRequested([att.id]);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
