@@ -37,6 +37,7 @@ let _composeAttachments   = [];
 let _composeRecipients    = [];
 let _senderEmail          = "";
 let _readShareInfo        = null;
+let _composeConversationCtx    = null;
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -560,10 +561,14 @@ function renderIndividualComposeList(attachments, container) {
         const div = document.createElement("div");
         div.className = "att-item";
         const rec = getAttachmentRecord(att);
-        const btnLabel = rec ? "\u2713 Shared" : "Share";
+        const btnLabel = rec
+            ? "\u2713 Shared"
+            : _composeConversationCtx ? "Add to Bundle" : "Share";
         const btnClass = rec
             ? "btn-upload-single btn-upload-share btn-shared-done"
-            : "btn-upload-single btn-upload-share";
+            : _composeConversationCtx
+                ? "btn-upload-single btn-upload-share btn-add-bundle"
+                : "btn-upload-single btn-upload-share";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
@@ -575,7 +580,12 @@ function renderIndividualComposeList(attachments, container) {
         container.appendChild(div);
     });
     container.querySelectorAll(".btn-upload-share:not([disabled])").forEach(btn => {
-        btn.onclick = () => handleComposeSingleUpload(parseInt(btn.dataset.index));
+        const i = parseInt(btn.dataset.index);
+        if (_composeConversationCtx) {
+            btn.onclick = () => handleComposeAddToBundle(i);
+        } else {
+            btn.onclick = () => handleComposeSingleUpload(i);
+        }
     });
 }
 
@@ -627,6 +637,18 @@ function insertShareLinkIntoBody(link, filename) {
 }
 function renderComposeResult(link) {
     document.getElementById("result-link-text").textContent = link;
+    const copyBtn = document.getElementById("btn-copy-link");
+    if (copyBtn) {
+        copyBtn.id        = "btn-curate-link";
+        copyBtn.title     = "Open in SmartBlue";
+        copyBtn.className = "btn-curate";
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+        </svg> Curate`;
+        copyBtn.onclick   = () => window.open(link, "_blank");
+    }
     document.getElementById("compose-result").classList.remove("hidden");
     document.getElementById("compose-result").scrollIntoView({ behavior:"smooth" });
 }
@@ -954,12 +976,11 @@ function switchToReadView() {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     state.currentConversationId = null; state.currentDocumentId = null;
-
+    // _readShareInfo intentionally kept — email body hasn't changed,
+    // share link must stay available for hasContext and Add to Bundle after Back
     const shareBtn = document.getElementById("btn-share-chat");
     if (shareBtn) shareBtn.disabled = false;
-    renderPreviousChats(); 
-    loadReadAttachments(); 
-    showReadStatus("");
+    renderPreviousChats(); loadReadAttachments(); showReadStatus("");
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -969,7 +990,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; loadComposeData(true); };
+    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; _composeConversationCtx = null; loadComposeData(true); };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -1079,9 +1100,14 @@ function renderComposeAttachments(attachments) {
     } else bulkSwitch.disabled = false;
 
     list.innerHTML = "";
+    const resultVisible = !document.getElementById("compose-result").classList.contains("hidden");
     if (isComposeBulkMode()) {
-        document.getElementById("compose-bundle-footer").classList.remove("hidden");
-        document.getElementById("btn-compose-upload").disabled = false;
+        if (resultVisible) {
+            document.getElementById("compose-bundle-footer").classList.add("hidden");
+        } else {
+            document.getElementById("compose-bundle-footer").classList.remove("hidden");
+            document.getElementById("btn-compose-upload").disabled = false;
+        }
         renderBundleList(attachments, list);
     } else {
         document.getElementById("compose-bundle-footer").classList.add("hidden");
@@ -1129,8 +1155,41 @@ async function handleComposeBundleUpload() {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
 }
+// Add a compose attachment as supporting doc to the already-uploaded conversation
+async function handleComposeAddToBundle(index) {
+    if (!_composeConversationCtx) return;
+    const att = _composeAttachments[index];
+    document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = true);
+    showComposeStatus("Adding " + att.name + " to bundle\u2026");
+    try {
+        const token = await getAuthToken();
+        await uploadSupportingById(att, _composeConversationCtx.conversationId, token);
+        if (_customProps) {
+            saveConversationRecord(_customProps, singleFingerprint(att), {
+                conversationId: _composeConversationCtx.conversationId,
+                documentId: _composeConversationCtx.documentId,
+                label: att.name, uploadType: "bundle", timestamp: Date.now(),
+            }).catch(err => console.warn("customProps save failed:", err.message));
+        }
+        showComposeStatus("");
+        // Mark button as done, re-enable others
+        document.querySelectorAll(".btn-upload-share").forEach(b => {
+            if (parseInt(b.dataset.index) === index) {
+                b.textContent = "\u2713 Added";
+                b.disabled = true;
+                b.classList.add("btn-shared-done");
+            } else { b.disabled = false; }
+        });
+    } catch (err) {
+        console.error("Compose add to bundle error:", err);
+        showComposeStatus("Error: " + err.message); clearToken();
+        document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = false);
+    }
+}
+
 async function handleComposeSingleUpload(index) {
     const att = _composeAttachments[index];
+    // Disable all buttons while uploading to prevent double-submit
     document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = true);
     document.getElementById("compose-result").classList.add("hidden");
     showComposeStatus("Signing in\u2026");
@@ -1153,9 +1212,11 @@ async function handleComposeSingleUpload(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
+        _composeConversationCtx = { conversationId, documentId };
         succeeded = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
+        renderComposeAttachments(_composeAttachments);
     } catch (err) {
         console.error("Compose single upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally {
