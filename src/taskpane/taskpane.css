@@ -800,3 +800,36 @@ html, body {
     cursor: default;
     opacity: 1 !important;
 }
+
+/* ── Curate button (result card) ─────────────────────────────────────── */
+.btn-curate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1A73E8;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+.btn-curate:hover { background: #1558b0; }
+.btn-curate svg { flex-shrink: 0; }
+
+/* ── Add to Bundle button in compose individual list ─────────────────── */
+.btn-add-bundle {
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+.btn-add-bundle:hover { background: #BBDEFB; }
