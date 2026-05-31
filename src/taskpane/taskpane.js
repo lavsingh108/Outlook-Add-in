@@ -711,7 +711,10 @@ function loadReadAttachments() {
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
 
-    const hasContext = !!(_customProps && Object.keys(getConversationMap(_customProps)).length > 0);
+    const hasContext = !!(
+        (_customProps && Object.keys(getConversationMap(_customProps)).length > 0) ||
+        (_readShareInfo && _readShareInfo.conversationId)
+    );
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -837,6 +840,18 @@ async function handleReadAddToBundle() {
         for (const att of secondaryAtts) {
             await uploadSupportingById(att, existingConvId, token);
         }
+        // Persist each added attachment so it shows as "✓ Added" on re-open
+        if (_customProps) {
+            await Promise.all(secondaryAtts.map(att =>
+                saveConversationRecord(_customProps, singleFingerprint(att), {
+                    conversationId: existingConvId,
+                    documentId: existingDocId,
+                    label: att.name,
+                    uploadType: "bundle-add",
+                    timestamp: Date.now(),
+                }).catch(err => console.warn("customProps save failed:", err.message))
+            ));
+        }
         showReadStatus("");
         await enterChat(existingConvId, existingDocId, token);
     } catch (err) {
@@ -861,6 +876,15 @@ async function handleReadAddToExisting(index) {
         if (!existingConvId) throw new Error("No existing conversation found.");
         showReadStatus("Adding " + att.name + " to conversation\u2026");
         await uploadSupportingById(att, existingConvId, token);
+        if (_customProps) {
+            saveConversationRecord(_customProps, singleFingerprint(att), {
+                conversationId: existingConvId,
+                documentId: existingDocId,
+                label: att.name,
+                uploadType: "bundle-add",
+                timestamp: Date.now(),
+            }).catch(err => console.warn("customProps save failed:", err.message));
+        }
         showReadStatus("");
         await enterChat(existingConvId, existingDocId, token);
     } catch (err) {
