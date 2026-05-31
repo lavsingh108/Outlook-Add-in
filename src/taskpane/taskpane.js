@@ -440,9 +440,12 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
         const div = document.createElement("div");
         div.className = "att-item";
         const rec = getAttachmentRecord(att);
-        const btnLabel = rec ? "\u25B6 Start Chat"
+        const isBundleAdd = rec?.uploadType === "bundle-add";
+        const btnLabel = isBundleAdd ? "\u2713 Added"
+            : rec ? "\u25B6 Start Chat"
             : hasContext ? "Add to Bundle" : "Upload";
-        const btnClass = rec ? "btn-upload-single btn-start-chat-att" : "btn-upload-single";
+        const btnClass = isBundleAdd ? "btn-upload-single btn-shared-done"
+            : rec ? "btn-upload-single btn-start-chat-att" : "btn-upload-single";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
@@ -454,9 +457,12 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
         container.appendChild(div);
     });
     container.querySelectorAll(".btn-upload-single").forEach(btn => {
-        const i = parseInt(btn.dataset.index);
-        const r = getAttachmentRecord(Office.context.mailbox.item.attachments[i]);
-        if (r) {
+        const i   = parseInt(btn.dataset.index);
+        const r   = getAttachmentRecord(Office.context.mailbox.item.attachments[i]);
+        const iBA = r?.uploadType === "bundle-add";
+        if (iBA) {
+            btn.disabled = true;
+        } else if (r) {
             btn.onclick = async () => {
                 btn.disabled = true;
                 showReadStatus("Signing in\u2026");
@@ -673,7 +679,7 @@ function renderPreviousChats() {
     const section = document.getElementById("read-prev-section");
     const list    = document.getElementById("read-prev-list");
     if (!_customProps) { section.classList.add("hidden"); return; }
-    const records = Object.values(getConversationMap(_customProps));
+    const records = Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "bundle-add");
     if (!records.length) { section.classList.add("hidden"); return; }
     list.innerHTML = "";
     records.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(rec => {
@@ -710,11 +716,10 @@ function loadReadAttachments() {
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
-
-    const hasContext = !!(
-        (_customProps && Object.keys(getConversationMap(_customProps)).length > 0) ||
-        (_readShareInfo && _readShareInfo.conversationId)
-    );
+    const primaryRecords = _customProps
+        ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "bundle-add")
+        : [];
+    const hasContext = primaryRecords.length > 0;
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -826,10 +831,11 @@ async function handleReadAddToBundle() {
     if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
 
     const sortedRecords = Object.values(getConversationMap(_customProps || {}))
+        .filter(r => r.uploadType !== "bundle-add")
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     const latestRecord = sortedRecords[0];
-    const existingConvId = latestRecord?.conversationId || _readShareInfo?.conversationId;
-    const existingDocId  = latestRecord?.documentId    || _readShareInfo?.docId;
+    const existingConvId = latestRecord?.conversationId;
+    const existingDocId  = latestRecord?.documentId;
     if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
 
     document.getElementById("btn-upload-bundle").disabled = true;
@@ -869,10 +875,11 @@ async function handleReadAddToExisting(index) {
     try {
         const token = await getAuthToken();
         const sortedRecs = Object.values(getConversationMap(_customProps || {}))
+            .filter(r => r.uploadType !== "bundle-add")
             .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const latestRec = sortedRecs[0];
-        const existingConvId = latestRec?.conversationId || _readShareInfo?.conversationId;
-        const existingDocId  = latestRec?.documentId    || _readShareInfo?.docId;
+        const existingConvId = latestRec?.conversationId;
+        const existingDocId  = latestRec?.documentId;
         if (!existingConvId) throw new Error("No existing conversation found.");
         showReadStatus("Adding " + att.name + " to conversation\u2026");
         await uploadSupportingById(att, existingConvId, token);
