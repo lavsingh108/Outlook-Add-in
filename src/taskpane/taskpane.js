@@ -620,50 +620,30 @@ function initRead() {
                 .then(cp => {
                     _customProps = cp;
 
-                    // Auto-open chat if we have enough context — no manual step needed:
-                    // Priority 1: shared URL in email body (has conversationId + docId)
-                    // Priority 2: most recent previous chat from custom props
-                    if (shareInfo && shareInfo.conversationId && shareInfo.docId) {
-                        getAuthToken()
-                            .then(token => enterChat(shareInfo.conversationId, shareInfo.docId, token))
-                            .catch(err => {
-                                console.warn("Auto-open from share link failed:", err.message);
-                                renderPreviousChats();
-                            });
-                        return; // skip rendering prev chats / attachments — enterChat shows the chat view
-                    }
+                    renderPreviousChats();
+                    loadReadAttachments();
+                    const atts = Office.context.mailbox.item.attachments || [];
+                    if (shareInfo && shareInfo.conversationId && atts.length > 0)
+                        document.getElementById("read-or-divider").classList.remove("hidden");
 
-                    const records = Object.values(getConversationMap(cp))
+                    const primaryRecs = Object.values(getConversationMap(cp))
+                        .filter(r => r.uploadType !== "bundle-add" && r.uploadType !== "shared-link")
                         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
-                    if (records.length > 0) {
-                        // Auto-resume the most recent conversation
-                        const latest = records[0];
+                    if (primaryRecs.length > 0) {
+                        const latest = primaryRecs[0];
                         getAuthToken()
                             .then(token => enterChat(latest.conversationId, latest.documentId, token))
-                            .catch(err => {
-                                console.warn("Auto-resume failed:", err.message);
-                                renderPreviousChats();
-                            });
-                        return;
+                            .catch(err => console.warn("Auto-resume failed:", err.message));
                     }
-
-                    // No context — show normal read view
-                    renderPreviousChats();
                 })
                 .catch(() => {
-                    // Custom props unavailable — fall through to normal UI
-                    if (shareInfo && shareInfo.conversationId && shareInfo.docId) {
-                        getAuthToken()
-                            .then(token => enterChat(shareInfo.conversationId, shareInfo.docId, token))
-                            .catch(err => console.warn("Auto-open failed:", err.message));
-                    }
+                    renderPreviousChats();
+                    loadReadAttachments();
+                    const atts = Office.context.mailbox.item.attachments || [];
+                    if (shareInfo && shareInfo.conversationId && atts.length > 0)
+                        document.getElementById("read-or-divider").classList.remove("hidden");
                 });
-
-            loadReadAttachments();
-            const atts = Office.context.mailbox.item.attachments || [];
-            if (shareInfo && shareInfo.conversationId && atts.length > 0)
-                document.getElementById("read-or-divider").classList.remove("hidden");
         })
         .catch(err => showReadInitError("Error reading email: " + err.message));
 }
