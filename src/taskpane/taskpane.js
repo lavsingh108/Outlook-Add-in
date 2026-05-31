@@ -419,6 +419,30 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
             : () => handleReadSingleUpload(parseInt(btn.dataset.index));
     });
 }
+// Simplified list for "Add to Bundle" mode — all attachments are selectable
+// as supporting docs (no primary concept since we already have a conversation).
+function renderAddToBundleList(attachments, container) {
+    container.innerHTML = "";
+    attachments.forEach((att, index) => {
+        const div = document.createElement("div");
+        div.className = "att-item";
+        div.dataset.index = index;
+        div.innerHTML = `
+            <div class="att-bundle-row">
+                <div class="att-secondary-col">
+                    <input type="checkbox" name="addToBundleIndex" value="${index}"
+                           id="chk-add-${index}" checked />
+                    <label class="sec-label" for="chk-add-${index}">Include</label>
+                </div>
+                <div class="att-info">
+                    <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
+                    <div class="att-meta">${formatBytes(att.size)}</div>
+                </div>
+            </div>`;
+        container.appendChild(div);
+    });
+}
+
 function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
@@ -636,11 +660,12 @@ function loadReadAttachments() {
         if (hasContext) {
             bundleBtn.textContent = "＋ Add to Bundle";
             bundleBtn.onclick = handleReadAddToBundle;
+            renderAddToBundleList(attachments, listDiv);
         } else {
             bundleBtn.textContent = "⬆ Upload & Analyse";
             bundleBtn.onclick = handleReadBundleUpload;
+            renderBundleList(attachments, listDiv);
         }
-        renderBundleList(attachments, listDiv);
     } else {
         footerDiv.classList.add("hidden");
         renderIndividualReadList(attachments, listDiv, hasContext);
@@ -708,7 +733,7 @@ async function handleReadSingleUpload(index) {
 // Called from bundle footer when existing context is present.
 async function handleReadAddToBundle() {
     const attachments   = Office.context.mailbox.item.attachments;
-    const secondaryAtts = Array.from(document.querySelectorAll("input[name='secondaryIndex']:checked"))
+    const secondaryAtts = Array.from(document.querySelectorAll("input[name='addToBundleIndex']:checked"))
         .map(c => parseInt(c.value)).map(i => attachments[i]);
     if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
 
