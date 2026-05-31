@@ -113,6 +113,62 @@ function bundleFingerprint(primaryAtt, secondaryAtts) {
     return `bundle_${[primaryAtt.id, ...ids].join("_")}`;
 }
 
+// ── Thread-scoped context (roamingSettings) ───────────────────────────────
+// Office.context.roamingSettings syncs via Exchange — same account, any device,
+// any Outlook client. Keyed by Outlook's conversationId which is identical for
+// every email in the same thread.
+//
+// Key:   "sb_thread_{outlookConversationId}"
+// Value: Array of { conversationId, documentId, label, uploadType, timestamp }
+//
+// 32KB total limit. Each record ≈ 150 bytes → ~200 threads before pruning.
+// Entries older than 90 days are pruned on every write.
+
+function getThreadKey() {
+    const threadId = Office.context.mailbox.item.conversationId || "unknown";
+    return `sb_thread_${threadId}`;
+}
+
+function saveThreadContext(record) {
+    try {
+        const rs  = Office.context.roamingSettings;
+        const key = getThreadKey();
+
+        // Merge by conversationId — no duplicates
+        const existing = getThreadContextAll();
+        const map = {};
+        existing.forEach(r => { map[r.conversationId] = r; });
+        map[record.conversationId] = record;
+        rs.set(key, Object.values(map));
+
+        // Maintain a key index so we can prune old threads
+        const cutoff    = Date.now() - 90 * 24 * 60 * 60 * 1000;
+        const index     = rs.get("sb_thread_index") || [];
+        if (!index.includes(key)) index.push(key);
+        const activeIdx = index.filter(k => {
+            const recs = rs.get(k);
+            if (!recs || !recs.length) { rs.remove(k); return false; }
+            const latest = Math.max(...recs.map(r => r.timestamp || 0));
+            if (latest < cutoff) { rs.remove(k); return false; }
+            return true;
+        });
+        rs.set("sb_thread_index", activeIdx);
+
+        rs.saveAsync(result => {
+            if (result.status !== Office.AsyncResultStatus.Succeeded)
+                console.warn("roamingSettings save failed:", result.error?.message);
+            else
+                console.log("Thread context saved to roamingSettings:", key);
+        });
+    } catch (e) { console.warn("saveThreadContext failed:", e.message); }
+}
+
+function getThreadContextAll() {
+    try {
+        return Office.context.roamingSettings.get(getThreadKey()) || [];
+    } catch { return []; }
+}
+
 // ── URL parsing ────────────────────────────────────────────────────────────
 function parseDocUrl(rawUrl) {
     try {
@@ -621,8 +677,11 @@ function initRead() {
                     if (shareInfo && shareInfo.conversationId && atts.length > 0)
                         document.getElementById("read-or-divider").classList.remove("hidden");
 
-                    const primaryRecs = Object.values(getConversationMap(cp))
-                        .filter(r => r.uploadType !== "shared-link")
+                    const cpPrimary = Object.values(getConversationMap(cp))
+                        .filter(r => r.uploadType !== "shared-link");
+                    const thPrimary = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+                    const primaryRecs = [...cpPrimary,
+                        ...thPrimary.filter(r => !cpPrimary.some(c => c.conversationId === r.conversationId))]
                         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
                     if (primaryRecs.length > 0) {
@@ -654,8 +713,14 @@ function renderPreviousChats() {
     const section = document.getElementById("read-prev-section");
     const list    = document.getElementById("read-prev-list");
     if (!_customProps) { section.classList.add("hidden"); return; }
-    const records = Object.values(getConversationMap(_customProps))
-        .filter(r => r.uploadType !== "shared-link");
+    const storedMap = {};
+    Object.values(getConversationMap(_customProps))
+        .filter(r => r.uploadType !== "shared-link")
+        .forEach(r => { storedMap[r.conversationId] = r; });
+    getThreadContextAll()
+        .filter(r => r.uploadType !== "shared-link")
+        .forEach(r => { if (!storedMap[r.conversationId]) storedMap[r.conversationId] = r; });
+    const records = Object.values(storedMap);
     if (!records.length) { section.classList.add("hidden"); return; }
     list.innerHTML = "";
     records.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(rec => {
@@ -692,10 +757,11 @@ function loadReadAttachments() {
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
-    const primaryRecords = _customProps
+    const cpRecords = _customProps
         ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "shared-link")
         : [];
-    const hasContext = primaryRecords.length > 0;
+    const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+    const hasContext = cpRecords.length > 0 || threadRecords.length > 0;
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -768,6 +834,7 @@ async function handleReadBundleUpload() {
                 conversationId, documentId, label: primaryAtt.name, uploadType:"bundle", timestamp:Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() });
         await enterChat(conversationId, documentId, token);
     } catch (err) {
         console.error("Read bundle upload error:", err); showReadStatus("Error: " + err.message); clearToken();
@@ -792,6 +859,7 @@ async function handleReadSingleUpload(index) {
                 conversationId, documentId, label:att.name, uploadType:"single", timestamp:Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
         await enterChat(conversationId, documentId, token);
     } catch (err) {
         console.error("Read single upload error:", err); showReadStatus("Error: " + err.message); clearToken();
@@ -806,10 +874,11 @@ async function handleReadAddToBundle() {
         .map(c => parseInt(c.value)).map(i => attachments[i]);
     if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
 
-    const sortedRecords = Object.values(getConversationMap(_customProps || {}))
-        .filter(r => r.uploadType !== "shared-link")
-        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    const latestRecord = sortedRecords[0];
+    const cpRecs = Object.values(getConversationMap(_customProps || {}))
+        .filter(r => r.uploadType !== "shared-link");
+    const thRecs = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+    const allRecs = [...cpRecs, ...thRecs.filter(r => !cpRecs.some(c => c.conversationId === r.conversationId))];
+    const latestRecord = allRecs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
     const existingConvId = latestRecord?.conversationId;
     const existingDocId  = latestRecord?.documentId;
     if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
@@ -850,10 +919,11 @@ async function handleReadAddToExisting(index) {
     showReadStatus("Signing in\u2026");
     try {
         const token = await getAuthToken();
-        const sortedRecs = Object.values(getConversationMap(_customProps || {}))
-            .filter(r => r.uploadType !== "shared-link")
-            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-        const latestRec = sortedRecs[0];
+        const cpR = Object.values(getConversationMap(_customProps || {}))
+            .filter(r => r.uploadType !== "shared-link");
+        const thR = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+        const allR = [...cpR, ...thR.filter(r => !cpR.some(c => c.conversationId === r.conversationId))];
+        const latestRec = allR.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
         const existingConvId = latestRec?.conversationId;
         const existingDocId  = latestRec?.documentId;
         if (!existingConvId) throw new Error("No existing conversation found.");
@@ -1052,6 +1122,7 @@ async function handleComposeBundleUpload() {
                 label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() });
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         showComposeStatus(""); renderComposeResult(documentURL);
     } catch (err) {
@@ -1081,6 +1152,7 @@ async function handleComposeSingleUpload(index) {
                 label: att.name, uploadType: "single", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
         succeeded = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
