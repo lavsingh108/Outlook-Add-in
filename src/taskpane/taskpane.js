@@ -28,7 +28,7 @@ const msalConfig = {
 };
 
 // ── State ──────────────────────────────────────────────────────────────────
-const state = { currentConversationId: null, currentDocumentId: null };
+const state = { currentConversationId: null, currentDocumentId: null, suppressAttachmentRefresh: false };
 
 let _msal                 = null;
 let _cachedSmartBlueToken = null;
@@ -812,6 +812,10 @@ function onComposeToggleMode() {
     renderComposeAttachments(_composeAttachments);
 }
 function loadComposeData(isRefresh) {
+    if (state.suppressAttachmentRefresh) {
+        document.getElementById("btn-refresh").classList.remove("spinning");
+        return;
+    }
     if (isRefresh) {
         document.getElementById("btn-refresh").classList.add("spinning");
         document.getElementById("compose-result").classList.add("hidden");
@@ -869,8 +873,9 @@ function renderComposeRecipients(toList, ccList, bccList = []) {
     buildRow("To:", toList); buildRow("CC:", ccList); buildRow("BCC:", bccList);
 }
 function renderComposeAttachments(attachments) {
-    const list  = document.getElementById("compose-attachments");
-    const badge = document.getElementById("attachments-count");
+    const list       = document.getElementById("compose-attachments");
+    const badge      = document.getElementById("attachments-count");
+    const bulkSwitch = document.getElementById("chk-compose-bulk");
     badge.textContent = attachments.length || "";
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
@@ -974,7 +979,7 @@ function copyResultLink() {
 // ══════════════════════════════════════════════════════════════════════════
 async function enterChat(conversationId, documentId, token) {
     state.currentConversationId = conversationId;
-    state.currentDocumentId = documentId;
+    state.currentDocumentId     = documentId;
     document.getElementById("view-read-init").classList.add("hidden");
     document.getElementById("view-read").classList.add("hidden");
     document.getElementById("view-compose").classList.add("hidden");
