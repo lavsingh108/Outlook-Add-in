@@ -659,24 +659,9 @@ function renderPreviousChats() {
     const section = document.getElementById("read-prev-section");
     const list    = document.getElementById("read-prev-list");
     if (!_customProps) { section.classList.add("hidden"); return; }
-    
-    const storedRecords = Object.values(getConversationMap(_customProps))
-        .filter(r => r.uploadType !== "bundle-add");
-
-    // If the email body contains a share link, synthesise a Previous Chat entry from it.
-    // This means every reply in the thread (which quotes the link) shows the same context.
-    const syntheticRecord = (_readShareInfo?.conversationId && !storedRecords.some(
-        r => r.conversationId === _readShareInfo.conversationId))
-        ? {
-            conversationId: _readShareInfo.conversationId,
-            documentId:     _readShareInfo.docId,
-            label:          _readShareInfo.linkText || "Shared Document",
-            uploadType:     "shared-link",
-            timestamp:      null,   // no timestamp — shown last
-          }
-        : null;
-
-    const records = syntheticRecord ? [...storedRecords, syntheticRecord] : storedRecords;
+    // Primary uploads only — bundle-add and shared-link are not resumable conversations
+    const records = Object.values(getConversationMap(_customProps))
+        .filter(r => r.uploadType !== "bundle-add" && r.uploadType !== "shared-link");
     if (!records.length) { section.classList.add("hidden"); return; }
     list.innerHTML = "";
     records.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(rec => {
@@ -880,7 +865,7 @@ async function handleReadAddToExisting(index) {
         if (!existingConvId) throw new Error("No existing conversation found.");
         showReadStatus("Adding " + att.name + " to conversation\u2026");
         await uploadSupportingById(att, existingConvId, token);
-        
+
         if (_customProps) {
             saveConversationRecord(_customProps, singleFingerprint(att), {
                 conversationId: existingConvId,
@@ -905,7 +890,7 @@ function switchToReadView() {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     state.currentConversationId = null; state.currentDocumentId = null;
-    _readShareInfo = null;  // reset so back-navigation works correctly
+
     const shareBtn = document.getElementById("btn-share-chat");
     if (shareBtn) shareBtn.disabled = false;
     renderPreviousChats(); 
