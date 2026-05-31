@@ -968,6 +968,7 @@ async function handleComposeSingleUpload(index) {
     document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = true);
     document.getElementById("compose-result").classList.add("hidden");
     showComposeStatus("Signing in\u2026");
+    let succeeded = false;
     try {
         const token = await getAuthToken();
         showComposeStatus("Uploading " + att.name + "\u2026");
@@ -985,11 +986,23 @@ async function handleComposeSingleUpload(index) {
                 label: att.name, uploadType: "single", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        succeeded = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
     } catch (err) {
         console.error("Compose single upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
-    } finally { document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = false); }
+    } finally {
+        document.querySelectorAll(".btn-upload-share").forEach(b => {
+            const btnIndex = parseInt(b.dataset.index);
+            if (succeeded && btnIndex === index) {
+                b.textContent = "\u2713 Shared";   // ✓ Shared
+                b.disabled = true;
+                b.classList.add("btn-shared-done");
+            } else {
+                b.disabled = false;
+            }
+        });
+    }
 }
 function copyResultLink() {
     const link = document.getElementById("result-link-text").textContent;
