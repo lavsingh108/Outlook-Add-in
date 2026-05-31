@@ -783,6 +783,15 @@ html, body {
 }
 .btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
 
+/* ── All-added disabled footer button ──────────────────────────── */
+#btn-upload-bundle:disabled {
+    background: #e0e0e0 !important;
+    color: #9e9e9e !important;
+    border-color: #e0e0e0 !important;
+    cursor: default;
+    opacity: 1;
+}
+
 /* ── Shared-done button state ───────────────────────────────────── */
 .btn-shared-done {
     background: #e8f5e9 !important;

@@ -718,9 +718,20 @@ function loadReadAttachments() {
         const bundleBtn = document.getElementById("btn-upload-bundle");
         bundleBtn.disabled = false;
         if (hasContext) {
-            bundleBtn.textContent = "＋ Add to Bundle";
-            bundleBtn.onclick = handleReadAddToBundle;
             renderAddToBundleList(attachments, listDiv);  // checkboxes only, no radio
+            // If every attachment is already added, disable the footer button
+            const allAdded = attachments.every(a => isAttachmentUploaded(a));
+            if (allAdded) {
+                bundleBtn.textContent = "\u2713 All Added";
+                bundleBtn.disabled = true;
+                bundleBtn.classList.remove("btn-start-chat-att");
+                bundleBtn.onclick = null;
+            } else {
+                bundleBtn.textContent = "\uFF0B Add to Bundle";
+                bundleBtn.disabled = false;
+                bundleBtn.classList.remove("btn-start-chat-att");
+                bundleBtn.onclick = handleReadAddToBundle;
+            }
         } else {
             renderBundleList(attachments, listDiv);       // radio + checkboxes
             // After rendering, check if the default primary (index 0) has a record
