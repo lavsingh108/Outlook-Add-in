@@ -98,6 +98,16 @@ function saveConversationRecord(cp, fingerprint, record) {
     });
 }
 function singleFingerprint(att) { return `att_${att.id}`; }
+
+// Returns true if this attachment has already been uploaded and stored in custom props
+function isAttachmentUploaded(att) {
+    if (!_customProps) return false;
+    const map = getConversationMap(_customProps);
+    // Check single fingerprint
+    if (map[singleFingerprint(att)]) return true;
+    // Check if this attachment ID appears in any bundle fingerprint
+    return Object.keys(map).some(fp => fp.startsWith("bundle_") && fp.includes(att.id));
+}
 function bundleFingerprint(primaryAtt, secondaryAtts) {
     const ids = secondaryAtts.map(a => a.id).sort();
     return `bundle_${[primaryAtt.id, ...ids].join("_")}`;
@@ -373,9 +383,12 @@ function renderBundleList(attachments, container) {
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
                 <div class="att-secondary-col">
-                    <input type="checkbox" name="secondaryIndex" value="${index}" id="chk-sec-${index}"
-                           ${isPrimary ? "" : "checked"} ${isPrimary ? "disabled" : ""}/>
-                    <label class="sec-label" for="chk-sec-${index}">Include</label>
+                    ${isAttachmentUploaded(att) && !isPrimary
+                        ? '<span class="sec-label" style="color:#2e7d32">\u2713 Uploaded</span>'
+                        : `<input type="checkbox" name="secondaryIndex" value="${index}" id="chk-sec-${index}"
+                               ${isPrimary ? "" : "checked"} ${isPrimary ? "disabled" : ""}/>
+                           <label class="sec-label" for="chk-sec-${index}">Include</label>`
+                    }
                 </div>
             </div>`;
         container.appendChild(div);
@@ -402,21 +415,25 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
-        const btnLabel = hasContext ? "Add to Bundle" : "Upload";
+        const alreadyUploaded = isAttachmentUploaded(att);
+        const btnLabel = alreadyUploaded ? "\u2713 Uploaded"
+            : hasContext ? "Add to Bundle" : "Upload";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="btn-upload-single" data-index="${index}">${btnLabel}</button>
+                <button class="btn-upload-single${alreadyUploaded ? ' btn-shared-done' : ''}" 
+                        data-index="${index}" ${alreadyUploaded ? 'disabled' : ''}>${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
-    container.querySelectorAll(".btn-upload-single").forEach(btn => {
+    container.querySelectorAll(".btn-upload-single:not([disabled])").forEach(btn => {
+        const i = parseInt(btn.dataset.index);
         btn.onclick = hasContext
-            ? () => handleReadAddToExisting(parseInt(btn.dataset.index))
-            : () => handleReadSingleUpload(parseInt(btn.dataset.index));
+            ? () => handleReadAddToExisting(i)
+            : () => handleReadSingleUpload(i);
     });
 }
 // Simplified list for "Add to Bundle" mode — all attachments are selectable
@@ -427,12 +444,16 @@ function renderAddToBundleList(attachments, container) {
         const div = document.createElement("div");
         div.className = "att-item";
         div.dataset.index = index;
+        const alreadyAdded = isAttachmentUploaded(att);
         div.innerHTML = `
             <div class="att-bundle-row">
                 <div class="att-secondary-col">
-                    <input type="checkbox" name="addToBundleIndex" value="${index}"
-                           id="chk-add-${index}" checked />
-                    <label class="sec-label" for="chk-add-${index}">Include</label>
+                    ${alreadyAdded
+                        ? '<span class="sec-label" style="color:#2e7d32">\u2713 Added</span>'
+                        : `<input type="checkbox" name="addToBundleIndex" value="${index}"
+                               id="chk-add-${index}" checked />
+                           <label class="sec-label" for="chk-add-${index}">Include</label>`
+                    }
                 </div>
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
@@ -447,17 +468,20 @@ function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
+        const alreadyShared = isAttachmentUploaded(att);
+        const btnLabel = alreadyShared ? "\u2713 Shared" : "Share";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="btn-upload-single btn-upload-share" data-index="${index}">Share</button>
+                <button class="btn-upload-single btn-upload-share${alreadyShared ? ' btn-shared-done' : ''}" 
+                        data-index="${index}" ${alreadyShared ? 'disabled' : ''}>${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
-    container.querySelectorAll(".btn-upload-share").forEach(btn => {
+    container.querySelectorAll(".btn-upload-share:not([disabled])").forEach(btn => {
         btn.onclick = () => handleComposeSingleUpload(parseInt(btn.dataset.index));
     });
 }
@@ -995,7 +1019,7 @@ async function handleComposeSingleUpload(index) {
         document.querySelectorAll(".btn-upload-share").forEach(b => {
             const btnIndex = parseInt(b.dataset.index);
             if (succeeded && btnIndex === index) {
-                b.textContent = "\u2713 Shared";   // ✓ Shared
+                b.textContent = "\u2713 Shared";
                 b.disabled = true;
                 b.classList.add("btn-shared-done");
             } else {

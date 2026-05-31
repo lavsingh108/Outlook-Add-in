@@ -704,6 +704,57 @@ html, body {
 .btn-upload-share:hover    { background: #1565C0 !important; }
 .btn-upload-share:disabled { background: #90A4AE !important; }
 
+/* ── Previous chats list ────────────────────────────────────────── */
+.prev-chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.prev-chat-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: border-color .15s;
+}
+.prev-chat-item:hover { border-color: #90CAF9; }
+
+.prev-chat-info { flex: 1; min-width: 0; }
+
+.prev-chat-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prev-chat-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+.btn-resume {
+    flex-shrink: 0;
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+.btn-resume:hover { background: #BBDEFB; }
+
 /* ── Compose attachment option row ─────────────────────────────── */
 .compose-option-row {
     display: flex;
