@@ -679,7 +679,24 @@ function renderPreviousChats() {
     const section = document.getElementById("read-prev-section");
     const list    = document.getElementById("read-prev-list");
     if (!_customProps) { section.classList.add("hidden"); return; }
-    const records = Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "bundle-add");
+    
+    const storedRecords = Object.values(getConversationMap(_customProps))
+        .filter(r => r.uploadType !== "bundle-add");
+
+    // If the email body contains a share link, synthesise a Previous Chat entry from it.
+    // This means every reply in the thread (which quotes the link) shows the same context.
+    const syntheticRecord = (_readShareInfo?.conversationId && !storedRecords.some(
+        r => r.conversationId === _readShareInfo.conversationId))
+        ? {
+            conversationId: _readShareInfo.conversationId,
+            documentId:     _readShareInfo.docId,
+            label:          _readShareInfo.linkText || "Shared Document",
+            uploadType:     "shared-link",
+            timestamp:      null,   // no timestamp — shown last
+          }
+        : null;
+
+    const records = syntheticRecord ? [...storedRecords, syntheticRecord] : storedRecords;
     if (!records.length) { section.classList.add("hidden"); return; }
     list.innerHTML = "";
     records.slice().sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(rec => {
@@ -719,7 +736,7 @@ function loadReadAttachments() {
     const primaryRecords = _customProps
         ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "bundle-add")
         : [];
-    const hasContext = primaryRecords.length > 0;
+    const hasContext = primaryRecords.length > 0 || !!(_readShareInfo?.conversationId);
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -834,8 +851,8 @@ async function handleReadAddToBundle() {
         .filter(r => r.uploadType !== "bundle-add")
         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
     const latestRecord = sortedRecords[0];
-    const existingConvId = latestRecord?.conversationId;
-    const existingDocId  = latestRecord?.documentId;
+    const existingConvId = latestRecord?.conversationId || _readShareInfo?.conversationId;
+    const existingDocId  = latestRecord?.documentId    || _readShareInfo?.docId;
     if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
 
     document.getElementById("btn-upload-bundle").disabled = true;
@@ -878,11 +895,12 @@ async function handleReadAddToExisting(index) {
             .filter(r => r.uploadType !== "bundle-add")
             .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
         const latestRec = sortedRecs[0];
-        const existingConvId = latestRec?.conversationId;
-        const existingDocId  = latestRec?.documentId;
+        const existingConvId = latestRec?.conversationId || _readShareInfo?.conversationId;
+        const existingDocId  = latestRec?.documentId    || _readShareInfo?.docId;
         if (!existingConvId) throw new Error("No existing conversation found.");
         showReadStatus("Adding " + att.name + " to conversation\u2026");
         await uploadSupportingById(att, existingConvId, token);
+        
         if (_customProps) {
             saveConversationRecord(_customProps, singleFingerprint(att), {
                 conversationId: existingConvId,
