@@ -710,8 +710,8 @@ function loadReadAttachments() {
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
-    const hasContext = !!((_readShareInfo && _readShareInfo.conversationId) ||
-        (_customProps && Object.keys(getConversationMap(_customProps)).length > 0));
+
+    const hasContext = !!(_customProps && Object.keys(getConversationMap(_customProps)).length > 0);
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -811,8 +811,11 @@ async function handleReadAddToBundle() {
         .map(c => parseInt(c.value)).map(i => attachments[i]);
     if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
 
-    const existingConvId = _readShareInfo?.conversationId
-        || Object.values(getConversationMap(_customProps || {})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.conversationId;
+    const sortedRecords = Object.values(getConversationMap(_customProps || {}))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    const latestRecord = sortedRecords[0];
+    const existingConvId = latestRecord?.conversationId || _readShareInfo?.conversationId;
+    const existingDocId  = latestRecord?.documentId    || _readShareInfo?.docId;
     if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
 
     document.getElementById("btn-upload-bundle").disabled = true;
@@ -824,9 +827,7 @@ async function handleReadAddToBundle() {
             await uploadSupportingById(att, existingConvId, token);
         }
         showReadStatus("");
-        await enterChat(existingConvId, _readShareInfo?.docId
-            || Object.values(getConversationMap(_customProps||{})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.documentId,
-            token);
+        await enterChat(existingConvId, existingDocId, token);
     } catch (err) {
         console.error("Add to bundle error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.getElementById("btn-upload-bundle").disabled = false;
@@ -841,14 +842,15 @@ async function handleReadAddToExisting(index) {
     showReadStatus("Signing in\u2026");
     try {
         const token = await getAuthToken();
-        const existingConvId = _readShareInfo?.conversationId
-            || Object.values(getConversationMap(_customProps || {})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.conversationId;
+        const sortedRecs = Object.values(getConversationMap(_customProps || {}))
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        const latestRec = sortedRecs[0];
+        const existingConvId = latestRec?.conversationId || _readShareInfo?.conversationId;
+        const existingDocId  = latestRec?.documentId    || _readShareInfo?.docId;
         if (!existingConvId) throw new Error("No existing conversation found.");
         showReadStatus("Adding " + att.name + " to conversation\u2026");
         await uploadSupportingById(att, existingConvId, token);
         showReadStatus("");
-        const existingDocId = _readShareInfo?.docId
-            || Object.values(getConversationMap(_customProps||{})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.documentId;
         await enterChat(existingConvId, existingDocId, token);
     } catch (err) {
         console.error("Add to existing error:", err); showReadStatus("Error: " + err.message); clearToken();
