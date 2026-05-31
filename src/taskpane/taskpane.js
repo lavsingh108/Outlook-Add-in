@@ -36,6 +36,7 @@ let _customProps          = null;
 let _composeAttachments   = [];
 let _composeRecipients    = [];
 let _senderEmail          = "";
+let _readShareInfo        = null;
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -396,23 +397,26 @@ function updateBundleSelection(container) {
 document.addEventListener("change", (e) => {
     if (e.target.name === "secondaryIndex") e.target.dataset.userUnchecked = e.target.checked ? "" : "1";
 });
-function renderIndividualReadList(attachments, container) {
+function renderIndividualReadList(attachments, container, hasContext = false) {
     container.innerHTML = "";
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
+        const btnLabel = hasContext ? "Add to Bundle" : "Upload";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="btn-upload-single" data-index="${index}">Upload</button>
+                <button class="btn-upload-single" data-index="${index}">${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
     container.querySelectorAll(".btn-upload-single").forEach(btn => {
-        btn.onclick = () => handleReadSingleUpload(parseInt(btn.dataset.index));
+        btn.onclick = hasContext
+            ? () => handleReadAddToExisting(parseInt(btn.dataset.index))
+            : () => handleReadSingleUpload(parseInt(btn.dataset.index));
     });
 }
 function renderIndividualComposeList(attachments, container) {
@@ -517,7 +521,10 @@ function initRead() {
         .then(shareInfo => {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
-            if (shareInfo && shareInfo.conversationId) renderShareSection(shareInfo);
+            if (shareInfo && shareInfo.conversationId) {
+                _readShareInfo = shareInfo;
+                renderShareSection(shareInfo);
+            }
 
             loadCustomProps()
                 .then(cp => {
@@ -619,13 +626,24 @@ function loadReadAttachments() {
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
+    const hasContext = !!((_readShareInfo && _readShareInfo.conversationId) ||
+        (_customProps && Object.keys(getConversationMap(_customProps)).length > 0));
+
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
-        document.getElementById("btn-upload-bundle").disabled = false;
+        const bundleBtn = document.getElementById("btn-upload-bundle");
+        bundleBtn.disabled = false;
+        if (hasContext) {
+            bundleBtn.textContent = "＋ Add to Bundle";
+            bundleBtn.onclick = handleReadAddToBundle;
+        } else {
+            bundleBtn.textContent = "⬆ Upload & Analyse";
+            bundleBtn.onclick = handleReadBundleUpload;
+        }
         renderBundleList(attachments, listDiv);
     } else {
         footerDiv.classList.add("hidden");
-        renderIndividualReadList(attachments, listDiv);
+        renderIndividualReadList(attachments, listDiv, hasContext);
     }
 }
 async function handleReadBundleUpload() {
@@ -686,6 +704,59 @@ async function handleReadSingleUpload(index) {
         document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
     }
 }
+// Upload selected attachments as supporting docs to the existing conversation.
+// Called from bundle footer when existing context is present.
+async function handleReadAddToBundle() {
+    const attachments   = Office.context.mailbox.item.attachments;
+    const secondaryAtts = Array.from(document.querySelectorAll("input[name='secondaryIndex']:checked"))
+        .map(c => parseInt(c.value)).map(i => attachments[i]);
+    if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
+
+    const existingConvId = _readShareInfo?.conversationId
+        || Object.values(getConversationMap(_customProps || {})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.conversationId;
+    if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
+
+    document.getElementById("btn-upload-bundle").disabled = true;
+    showReadStatus("Signing in\u2026");
+    try {
+        const token = await getAuthToken();
+        showReadStatus("Adding " + secondaryAtts.length + " doc(s) to conversation\u2026");
+        for (const att of secondaryAtts) {
+            await uploadSupportingById(att, existingConvId, token);
+        }
+        showReadStatus("");
+        await enterChat(existingConvId, _readShareInfo?.docId
+            || Object.values(getConversationMap(_customProps||{})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.documentId,
+            token);
+    } catch (err) {
+        console.error("Add to bundle error:", err); showReadStatus("Error: " + err.message); clearToken();
+        document.getElementById("btn-upload-bundle").disabled = false;
+    }
+}
+
+// Add a single attachment as a supporting doc to the existing conversation.
+// Called from individual list buttons when existing context is present.
+async function handleReadAddToExisting(index) {
+    const att = Office.context.mailbox.item.attachments[index];
+    document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = true);
+    showReadStatus("Signing in\u2026");
+    try {
+        const token = await getAuthToken();
+        const existingConvId = _readShareInfo?.conversationId
+            || Object.values(getConversationMap(_customProps || {})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.conversationId;
+        if (!existingConvId) throw new Error("No existing conversation found.");
+        showReadStatus("Adding " + att.name + " to conversation\u2026");
+        await uploadSupportingById(att, existingConvId, token);
+        showReadStatus("");
+        const existingDocId = _readShareInfo?.docId
+            || Object.values(getConversationMap(_customProps||{})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))[0]?.documentId;
+        await enterChat(existingConvId, existingDocId, token);
+    } catch (err) {
+        console.error("Add to existing error:", err); showReadStatus("Error: " + err.message); clearToken();
+        document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
+    }
+}
+
 function switchToReadView() {
     document.getElementById("view-chat").classList.add("hidden");
     document.getElementById("view-read").classList.remove("hidden");
@@ -693,6 +764,7 @@ function switchToReadView() {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     state.currentConversationId = null; state.currentDocumentId = null;
+    _readShareInfo = null;  // reset so back-navigation works correctly
     const shareBtn = document.getElementById("btn-share-chat");
     if (shareBtn) shareBtn.disabled = false;
     renderPreviousChats(); 
@@ -707,7 +779,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick        = () => loadComposeData(true);
+    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; loadComposeData(true); };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -799,7 +871,6 @@ function renderComposeRecipients(toList, ccList, bccList = []) {
 function renderComposeAttachments(attachments) {
     const list  = document.getElementById("compose-attachments");
     const badge = document.getElementById("attachments-count");
-    const bulkSwitch = document.getElementById("chk-compose-bulk");
     badge.textContent = attachments.length || "";
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
@@ -848,6 +919,7 @@ async function handleComposeBundleUpload() {
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
+        state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested(allAttIds);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
@@ -875,6 +947,7 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, att.name);
+        state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
