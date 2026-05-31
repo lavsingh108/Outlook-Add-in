@@ -774,6 +774,15 @@ html, body {
     flex-shrink: 0;
 }
 
+/* ── Attachment-level Start Chat button ────────────────────────── */
+.btn-start-chat-att {
+    background: #1A73E8 !important;
+    color: #fff !important;
+    border-color: #1A73E8 !important;
+    font-weight: 600;
+}
+.btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
+
 /* ── Shared-done button state ───────────────────────────────────── */
 .btn-shared-done {
     background: #e8f5e9 !important;

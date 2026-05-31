@@ -99,15 +99,15 @@ function saveConversationRecord(cp, fingerprint, record) {
 }
 function singleFingerprint(att) { return `att_${att.id}`; }
 
-// Returns true if this attachment has already been uploaded and stored in custom props
-function isAttachmentUploaded(att) {
-    if (!_customProps) return false;
+// Returns the stored conversation record for this attachment, or null if not uploaded.
+function getAttachmentRecord(att) {
+    if (!_customProps) return null;
     const map = getConversationMap(_customProps);
-    // Check single fingerprint
-    if (map[singleFingerprint(att)]) return true;
-    // Check if this attachment ID appears in any bundle fingerprint
-    return Object.keys(map).some(fp => fp.startsWith("bundle_") && fp.includes(att.id));
+    if (map[singleFingerprint(att)]) return map[singleFingerprint(att)];
+    const bundleKey = Object.keys(map).find(fp => fp.startsWith("bundle_") && fp.includes(att.id));
+    return bundleKey ? map[bundleKey] : null;
 }
+function isAttachmentUploaded(att) { return !!getAttachmentRecord(att); }
 function bundleFingerprint(primaryAtt, secondaryAtts) {
     const ids = secondaryAtts.map(a => a.id).sort();
     return `bundle_${[primaryAtt.id, ...ids].join("_")}`;
@@ -394,7 +394,31 @@ function renderBundleList(attachments, container) {
         container.appendChild(div);
     });
     container.querySelectorAll("input[name='primaryIndex']").forEach(radio => {
-        radio.addEventListener("change", () => updateBundleSelection(container));
+        radio.addEventListener("change", () => {
+            updateBundleSelection(container);
+            const atts = Office.context.mailbox.item.attachments ||
+                         _composeAttachments || [];
+            const selectedIndex = parseInt(radio.value);
+            const primaryAtt = atts[selectedIndex];
+            if (!primaryAtt) return;
+            const bundleBtn = document.getElementById("btn-upload-bundle");
+            if (!bundleBtn) return;
+            const rec = getAttachmentRecord(primaryAtt);
+            if (rec) {
+                bundleBtn.textContent = "\u25B6 Start Chat";
+                bundleBtn.classList.add("btn-start-chat-att");
+                bundleBtn.onclick = async () => {
+                    bundleBtn.disabled = true;
+                    showReadStatus("Signing in\u2026");
+                    try { const token = await getAuthToken(); await enterChat(rec.conversationId, rec.documentId, token); }
+                    catch (err) { showReadStatus("Error: " + err.message); clearToken(); bundleBtn.disabled = false; }
+                };
+            } else {
+                bundleBtn.textContent = "\u2B06 Upload & Analyse";
+                bundleBtn.classList.remove("btn-start-chat-att");
+                bundleBtn.onclick = handleReadBundleUpload;
+            }
+        });
     });
 }
 function updateBundleSelection(container) {
@@ -415,25 +439,35 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
-        const alreadyUploaded = isAttachmentUploaded(att);
-        const btnLabel = alreadyUploaded ? "\u2713 Uploaded"
+        const rec = getAttachmentRecord(att);
+        const btnLabel = rec ? "\u25B6 Start Chat"
             : hasContext ? "Add to Bundle" : "Upload";
+        const btnClass = rec ? "btn-upload-single btn-start-chat-att" : "btn-upload-single";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="btn-upload-single${alreadyUploaded ? ' btn-shared-done' : ''}" 
-                        data-index="${index}" ${alreadyUploaded ? 'disabled' : ''}>${btnLabel}</button>
+                <button class="${btnClass}" data-index="${index}">${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
-    container.querySelectorAll(".btn-upload-single:not([disabled])").forEach(btn => {
+    container.querySelectorAll(".btn-upload-single").forEach(btn => {
         const i = parseInt(btn.dataset.index);
-        btn.onclick = hasContext
-            ? () => handleReadAddToExisting(i)
-            : () => handleReadSingleUpload(i);
+        const r = getAttachmentRecord(Office.context.mailbox.item.attachments[i]);
+        if (r) {
+            btn.onclick = async () => {
+                btn.disabled = true;
+                showReadStatus("Signing in\u2026");
+                try { const token = await getAuthToken(); await enterChat(r.conversationId, r.documentId, token); }
+                catch (err) { showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false; }
+            };
+        } else {
+            btn.onclick = hasContext
+                ? () => handleReadAddToExisting(i)
+                : () => handleReadSingleUpload(i);
+        }
     });
 }
 // Simplified list for "Add to Bundle" mode — all attachments are selectable
@@ -468,16 +502,18 @@ function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
-        const alreadyShared = isAttachmentUploaded(att);
-        const btnLabel = alreadyShared ? "\u2713 Shared" : "Share";
+        const rec = getAttachmentRecord(att);
+        const btnLabel = rec ? "\u2713 Shared" : "Share";
+        const btnClass = rec
+            ? "btn-upload-single btn-upload-share btn-shared-done"
+            : "btn-upload-single btn-upload-share";
         div.innerHTML = `
             <div class="att-individual-row">
                 <div class="att-info">
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="btn-upload-single btn-upload-share${alreadyShared ? ' btn-shared-done' : ''}" 
-                        data-index="${index}" ${alreadyShared ? 'disabled' : ''}>${btnLabel}</button>
+                <button class="${btnClass}" data-index="${index}" ${rec ? 'disabled' : ''}>${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
@@ -684,11 +720,25 @@ function loadReadAttachments() {
         if (hasContext) {
             bundleBtn.textContent = "＋ Add to Bundle";
             bundleBtn.onclick = handleReadAddToBundle;
-            renderAddToBundleList(attachments, listDiv);
+            renderAddToBundleList(attachments, listDiv);  // checkboxes only, no radio
         } else {
-            bundleBtn.textContent = "⬆ Upload & Analyse";
-            bundleBtn.onclick = handleReadBundleUpload;
-            renderBundleList(attachments, listDiv);
+            renderBundleList(attachments, listDiv);       // radio + checkboxes
+            // After rendering, check if the default primary (index 0) has a record
+            const primaryRec = getAttachmentRecord(attachments[0]);
+            if (primaryRec) {
+                bundleBtn.textContent = "\u25B6 Start Chat";
+                bundleBtn.classList.add("btn-start-chat-att");
+                bundleBtn.onclick = async () => {
+                    bundleBtn.disabled = true;
+                    showReadStatus("Signing in\u2026");
+                    try { const token = await getAuthToken(); await enterChat(primaryRec.conversationId, primaryRec.documentId, token); }
+                    catch (err) { showReadStatus("Error: " + err.message); clearToken(); bundleBtn.disabled = false; }
+                };
+            } else {
+                bundleBtn.textContent = "\u2B06 Upload & Analyse";
+                bundleBtn.classList.remove("btn-start-chat-att");
+                bundleBtn.onclick = handleReadBundleUpload;
+            }
         }
     } else {
         footerDiv.classList.add("hidden");
