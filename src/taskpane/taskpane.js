@@ -38,6 +38,7 @@ let _composeRecipients    = [];
 let _senderEmail          = "";
 let _readShareInfo        = null;
 let _composeConversationCtx    = null;
+let _composeUploadedAttIds     = new Set();
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -560,11 +561,11 @@ function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
-        const rec = getAttachmentRecord(att);
-        const btnLabel = rec
+        const alreadyUploaded = _composeUploadedAttIds.has(att.id);
+        const btnLabel = alreadyUploaded
             ? "\u2713 Shared"
             : _composeConversationCtx ? "Add to Bundle" : "Share";
-        const btnClass = rec
+        const btnClass = alreadyUploaded
             ? "btn-upload-single btn-upload-share btn-shared-done"
             : _composeConversationCtx
                 ? "btn-upload-single btn-upload-share btn-add-bundle"
@@ -575,7 +576,8 @@ function renderIndividualComposeList(attachments, container) {
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="${btnClass}" data-index="${index}" ${rec ? 'disabled' : ''}>${btnLabel}</button>
+                <button class="${btnClass}" data-index="${index}"
+                    ${alreadyUploaded ? 'disabled' : ''}>${btnLabel}</button>
             </div>`;
         container.appendChild(div);
     });
@@ -990,7 +992,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; _composeConversationCtx = null; loadComposeData(true); };
+    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; _composeConversationCtx = null; _composeUploadedAttIds = new Set(); loadComposeData(true); };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -1171,15 +1173,9 @@ async function handleComposeAddToBundle(index) {
                 label: att.name, uploadType: "bundle", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
+        _composeUploadedAttIds.add(att.id);
         showComposeStatus("");
-        // Mark button as done, re-enable others
-        document.querySelectorAll(".btn-upload-share").forEach(b => {
-            if (parseInt(b.dataset.index) === index) {
-                b.textContent = "\u2713 Added";
-                b.disabled = true;
-                b.classList.add("btn-shared-done");
-            } else { b.disabled = false; }
-        });
+        renderComposeAttachments(_composeAttachments);
     } catch (err) {
         console.error("Compose add to bundle error:", err);
         showComposeStatus("Error: " + err.message); clearToken();
@@ -1213,6 +1209,7 @@ async function handleComposeSingleUpload(index) {
         }
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
         _composeConversationCtx = { conversationId, documentId };
+        _composeUploadedAttIds.add(att.id);
         succeeded = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
