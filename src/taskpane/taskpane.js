@@ -647,21 +647,25 @@ function insertShareLinkIntoBody(link, filename) {
     });
 }
 function renderComposeResult(link) {
-    document.getElementById("result-link-text").textContent = link;
-    // Replace copy button with Curate button
-    // btn-copy-link may already be btn-curate-link from a previous upload
-    const copyBtn = document.getElementById("btn-copy-link") || document.getElementById("btn-curate-link");
+    // Store URL in hidden input for copyResultLink fallback
+    document.getElementById("result-link-text").value = link;
+    // Copy URL button — already in HTML
+    const copyBtn = document.getElementById("btn-copy-link");
     if (copyBtn) {
-        copyBtn.id        = "btn-curate-link";
-        copyBtn.title     = "Open in SmartBlue";
-        copyBtn.className = "btn-curate";
-        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-        </svg> Curate`;
-        copyBtn.onclick   = () => window.open(link, "_blank");
+        copyBtn.onclick = () => {
+            const restore = () => {
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy URL';
+                }, 1600);
+            };
+            const done = () => { copyBtn.textContent = "\u2713 Copied!"; restore(); };
+            if (navigator.clipboard) navigator.clipboard.writeText(link).then(done).catch(() => fallbackCopy(link, done));
+            else fallbackCopy(link, done);
+        };
     }
+    // Curate button — already in HTML
+    const curateBtn = document.getElementById("btn-curate-link");
+    if (curateBtn) curateBtn.onclick = () => window.open(link, "_blank");
     document.getElementById("compose-result").classList.remove("hidden");
     document.getElementById("compose-result").scrollIntoView({ behavior:"smooth" });
 }
@@ -1379,11 +1383,11 @@ async function handleComposeSingleUpload(index) {
     }
 }
 function copyResultLink() {
-    const link = document.getElementById("result-link-text").textContent;
-    const btn  = document.getElementById("btn-copy-link");
-    const done = () => { btn.classList.add("copied"); setTimeout(() => btn.classList.remove("copied"), 1600); };
-    if (navigator.clipboard) navigator.clipboard.writeText(link).then(done).catch(() => fallbackCopy(link, done));
-    else fallbackCopy(link, done);
+    const link = document.getElementById("result-link-text")?.value || "";
+    if (link) {
+        if (navigator.clipboard) navigator.clipboard.writeText(link).catch(() => fallbackCopy(link, () => {}));
+        else fallbackCopy(link, () => {});
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════
