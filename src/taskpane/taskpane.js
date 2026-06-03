@@ -352,6 +352,18 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     if (!url) throw new Error("Share API returned no URL.");
     return url;
 }
+
+async function getShareLink(token, conversationId, docId) {
+    const resp = await fetch(`${PROXY_BASE}/v1/document/${encodeURIComponent(docId)}/share`, {
+        headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" },
+    });
+    if (!resp.ok) throw new Error("Share link API failed (" + resp.status + "): " + await resp.text());
+    const data = await resp.json();
+    const url = data.share_url || data.shareUrl || data.url || "";
+    if (!url) throw new Error("Share link API returned no URL.");
+    return url;
+}
+
 function fetchHistory(token, conversationId) {
     // Matches server route: GET /v1/conversation/history?conversation_id={id}
     return fetch(`${CONVERSATION_URL}/history?conversation_id=${encodeURIComponent(conversationId)}`, {
@@ -1262,8 +1274,9 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Creating share link\u2026");
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
+        const shareLink = await getShareLink(token, conversationId, documentId);
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        await insertShareLinkIntoBody(documentURL, primaryAtt.name);
+        await insertShareLinkIntoBody(shareLink, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         // Store session state so post-upload rendering knows what was uploaded
         _composeConversationCtx = { conversationId, documentId };
