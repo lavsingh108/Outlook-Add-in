@@ -1276,7 +1276,7 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Inserting link into email\u2026");
         const shareLink = await getShareLink(token, conversationId, documentId);
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        await insertShareLinkIntoBody(shareLink, primaryAtt.name);
+        await insertShareLinkIntoBody(shareLink["share-url"], primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         // Store session state so post-upload rendering knows what was uploaded
         _composeConversationCtx = { conversationId, documentId };
@@ -1357,8 +1357,9 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Creating share link\u2026");
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
+        const shareLink = await getShareLink(token, conversationId, documentId);
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        await insertShareLinkIntoBody(documentURL, att.name);
+        await insertShareLinkIntoBody(shareLink["share-url"], primaryAtt.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
         // Clear flag after short delay then force refresh
