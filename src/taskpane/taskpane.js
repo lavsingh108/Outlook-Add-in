@@ -1062,6 +1062,8 @@ function switchToReadView() {
         document.getElementById("chat-history").innerHTML = "";
         hideSuggestions();
         state.currentConversationId = null; state.currentDocumentId = null;
+        const startChatBtn = document.getElementById("btn-compose-start-chat");
+        if (startChatBtn) startChatBtn.disabled = false;
         return;
     }
     document.getElementById("view-read").classList.remove("hidden");
