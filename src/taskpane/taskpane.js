@@ -1200,13 +1200,10 @@ function renderPostUploadActions() {
                 await callShareApi(token, _composeConversationCtx.conversationId,
                     _composeConversationCtx.documentId, _senderEmail, newRecipients);
                 newRecipients.forEach(e => _composeSharedRecipients.add(e));
-                btn.textContent = "\u2713 Shared";
-                btn.classList.add("btn-shared-done");
-                // Hide the section after 3s
-                setTimeout(() => {
-                    section.remove();
-                    renderPostUploadActions();
-                }, 3000);
+                // Hide section immediately, flash status for 3s
+                section.remove();
+                showComposeStatus("\u2713 Shared with new recipients");
+                setTimeout(() => showComposeStatus(""), 3000);
             } catch (err) {
                 showComposeStatus("Share failed: " + err.message); clearToken();
                 btn.disabled = false; btn.textContent = "Share with New Recipients";
@@ -1242,11 +1239,14 @@ async function handleComposeBundleUpload() {
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
+        // Store session state so post-upload rendering knows what was uploaded
         _composeConversationCtx = { conversationId, documentId };
         allAttIds.forEach(id => _composeUploadedAttIds.add(id));
         _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested(allAttIds);
+        // Clear flag after 1.5s then force refresh — picks up anything added
+        // during the suppression window (new attachments / recipients)
         setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
@@ -1278,11 +1278,12 @@ async function handleComposeAddToBundle(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         _composeUploadedAttIds.add(att.id);
+        // Hide the attachment row immediately
+        const btn = document.querySelector(`.btn-upload-share[data-index="${index}"]`);
+        if (btn) btn.closest(".att-item")?.remove();
+        // Flash status for 3s then clear
         showComposeStatus("\u2713 Added to bundle");
-        setTimeout(() => {
-            showComposeStatus("");
-            renderComposeAttachments(_composeAttachments);
-        }, 3000);
+        setTimeout(() => showComposeStatus(""), 3000);
     } catch (err) {
         console.error("Compose add to bundle error:", err);
         showComposeStatus("Error: " + err.message); clearToken();
@@ -1308,7 +1309,9 @@ async function handleComposeSingleUpload(index) {
         await insertShareLinkIntoBody(documentURL, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
+        // Clear flag after short delay then force refresh
         setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
+        // do NOT clear flag here — AttachmentsChanged fires async after this resolves
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -1316,16 +1319,20 @@ async function handleComposeSingleUpload(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
+        // Store context so remaining attachments can "Add to Bundle"
         _composeConversationCtx = { conversationId, documentId };
         _composeUploadedAttIds.add(att.id);
         _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         succeeded = true;
         showComposeStatus("");
         renderComposeResult(documentURL);
+        // Re-render list so remaining buttons switch to "Add to Bundle"
         renderComposeAttachments(_composeAttachments);
     } catch (err) {
         console.error("Compose single upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally {
+        // On success: hide the button for the uploaded doc, re-enable all others
+        // On failure: re-enable all buttons so the user can retry
         document.querySelectorAll(".btn-upload-share").forEach(b => {
             const btnIndex = parseInt(b.dataset.index);
             if (succeeded && btnIndex === index) {
