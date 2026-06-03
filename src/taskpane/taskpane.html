@@ -50,19 +50,17 @@
             </div>
 
             <!-- Documents with Individual / Bundle toggle -->
-            <div class="compose-section compose-section-grow">
+            <div class="compose-section compose-section-grow" id="compose-documents-section">
                 <div class="compose-section-header">
                     <span class="compose-section-title">Documents</span>
                     <span class="compose-badge" id="attachments-count"></span>
                     <div class="mode-bar-mini">
-                        <span>
-                            <span class="mode-label" id="clbl-individual"></span>
-                            <span class="mode-label active" id="clbl-bundle">Bundle</span>
-                        </span>
+                        <span class="mode-label" id="clbl-individual">Individual</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="chk-compose-bulk" checked />
                             <span class="toggle-track"><span class="toggle-thumb"></span></span>
                         </label>
+                        <span class="mode-label active" id="clbl-bundle">Bundle</span>
                     </div>
                 </div>
                 <div id="compose-attachments" class="compose-att-list">
@@ -159,20 +157,18 @@
                 <div class="read-attach-header">
                     <span class="read-section-label">Attachments</span>
                     <div class="mode-bar-mini">
-                        <span>
-                            <span class="mode-label" id="lbl-individual"></span>
-                            <span class="mode-label active" id="lbl-bundle">Bundle</span>
-                        </span>
+                        <span class="mode-label" id="lbl-individual">Individual</span>
                         <label class="toggle-switch">
                             <input type="checkbox" id="chk-bulk" checked />
                             <span class="toggle-track"><span class="toggle-thumb"></span></span>
                         </label>
+                        <span class="mode-label active" id="lbl-bundle">Bundle</span>
                     </div>
                 </div>
                 <div id="attachment-list" class="attachment-list"></div>
                 <div class="footer hidden" id="bundle-footer">
                     <button id="btn-upload-bundle" class="btn-primary">
-                        ⬆ Upload &amp; Share
+                        ⬆ Upload &amp; Analyse
                     </button>
                 </div>
             </div>

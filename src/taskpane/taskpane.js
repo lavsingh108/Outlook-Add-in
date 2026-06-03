@@ -457,6 +457,7 @@ function renderBundleList(attachments, container) {
     container.querySelectorAll("input[name='primaryIndex']").forEach(radio => {
         radio.addEventListener("change", () => {
             updateBundleSelection(container);
+            // Re-evaluate footer button when primary selection changes
             const atts = Office.context.mailbox.item.attachments ||
                          _composeAttachments || [];
             const selectedIndex = parseInt(radio.value);
@@ -503,7 +504,7 @@ function renderIndividualReadList(attachments, container, hasContext = false) {
         const div = document.createElement("div");
         div.className = "att-item";
         const rec = getAttachmentRecord(att);
-
+        // Any stored record → Start Chat (points to that conversation)
         const btnLabel = rec ? "\u25B6 Start Chat"
             : hasContext ? "Add to Bundle" : "Upload";
         const btnClass = rec ? "btn-upload-single btn-start-chat-att" : "btn-upload-single";
@@ -566,6 +567,7 @@ function renderIndividualComposeList(attachments, container) {
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
+        // Use in-memory Set — _customProps is not loaded in compose mode
         const alreadyUploaded = _composeUploadedAttIds.has(att.id);
         const btnLabel = alreadyUploaded
             ? "\u2713 Shared"
@@ -721,6 +723,7 @@ function initRead() {
                     }
                 })
                 .catch(() => {
+                    // Custom props unavailable — still render what we can from share link
                     renderPreviousChats();
                     loadReadAttachments();
                     const atts = Office.context.mailbox.item.attachments || [];
@@ -742,6 +745,7 @@ function renderPreviousChats() {
     const section = document.getElementById("read-prev-section");
     const list    = document.getElementById("read-prev-list");
     if (!_customProps) { section.classList.add("hidden"); return; }
+    // Merge custom props records with thread-scoped sessionStorage records.
     const storedMap = {};
     Object.values(getConversationMap(_customProps))
         .filter(r => r.uploadType !== "shared-link")
@@ -786,6 +790,7 @@ function loadReadAttachments() {
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
+    // hasContext: custom props OR thread sessionStorage. Share link is NEVER a bundle target.
     const cpRecords = _customProps
         ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "shared-link")
         : [];
@@ -997,7 +1002,7 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick = () => {
+    document.getElementById("btn-refresh").onclick        = () => {
         clearTimeout(_composeRefreshTimer);
         state.suppressAttachmentRefresh = false;
         _composeConversationCtx  = null;
@@ -1008,6 +1013,7 @@ function initCompose() {
         document.getElementById("clbl-individual")?.classList.remove("hidden");
         document.getElementById("chk-compose-bulk").closest("label")?.classList.remove("hidden");
         document.getElementById("compose-new-recipients")?.remove();
+        document.getElementById("compose-documents-section")?.classList.remove("hidden");
         loadComposeData(true);
     };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
@@ -1134,11 +1140,23 @@ function renderComposeAttachments(attachments) {
         document.getElementById("chk-compose-bulk").closest("label")?.classList.add("hidden");
         document.getElementById("clbl-bundle")?.classList.add("hidden");
         document.getElementById("clbl-individual")?.classList.add("hidden");
-        renderIndividualComposeList(attachments, list);
+        // Only show new (not yet uploaded) attachments
+        const newAtts = attachments.filter(a => !_composeUploadedAttIds.has(a.id));
+        const docsSection = document.getElementById("compose-documents-section");
+        if (newAtts.length === 0) {
+            // All uploaded — hide the entire Documents section
+            if (docsSection) docsSection.classList.add("hidden");
+        } else {
+            // Show section with only the new attachments
+            if (docsSection) docsSection.classList.remove("hidden");
+            badge.textContent = newAtts.length;
+            renderIndividualComposeList(newAtts, list);
+        }
         renderPostUploadActions();
         return;
     }
 
+    // Normal pre-upload rendering
     if (isComposeBulkMode()) {
         document.getElementById("compose-bundle-footer").classList.remove("hidden");
         document.getElementById("btn-compose-upload").disabled = false;
@@ -1149,6 +1167,10 @@ function renderComposeAttachments(attachments) {
     }
 }
 
+// Shown after a successful upload. Detects:
+//   New recipients (not yet shared with) → "Share with New Recipients" button
+//   New attachments are already handled by renderIndividualComposeList /
+//   renderBundleList via _composeUploadedAttIds + _composeConversationCtx
 function renderPostUploadActions() {
     const newRecipients = _composeRecipients.filter(e => !_composeSharedRecipients.has(e));
     let section = document.getElementById("compose-new-recipients");
@@ -1191,7 +1213,6 @@ function renderPostUploadActions() {
 }
 
 async function handleComposeBundleUpload() {
-    const bundleFooter = document.getElementById("compose-bundle-footer");
     const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
     if (!primaryRadio) { showComposeStatus("Please select a primary document."); return; }
     const primaryIndex  = parseInt(primaryRadio.value);
@@ -1291,7 +1312,7 @@ async function handleComposeSingleUpload(index) {
         _composeUploadedAttIds.add(att.id);
         _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         succeeded = true;
-        showComposeStatus(""); 
+        showComposeStatus("");
         renderComposeResult(documentURL);
         renderComposeAttachments(_composeAttachments);
     } catch (err) {
