@@ -1047,7 +1047,9 @@ function loadComposeData(isRefresh) {
     }
     if (isRefresh) {
         document.getElementById("btn-refresh").classList.add("spinning");
-        document.getElementById("compose-result").classList.add("hidden");
+        if (!_composeConversationCtx) {
+            document.getElementById("compose-result").classList.add("hidden");
+        }
         showComposeStatus("");
     }
     try { _senderEmail = Office.context.mailbox.userProfile.emailAddress || ""; } catch (e) { _senderEmail = ""; }
