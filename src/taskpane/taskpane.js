@@ -390,7 +390,7 @@ async function getShareLink(token, conversationId, docId, access = 'restricted')
     );
     if (!resp.ok) throw new Error("Share link API failed (" + resp.status + "): " + await resp.text());
     const data = await resp.json();
-    const url = data["share-url"]|| "";
+    const url = data["share-url"] || "";
     if (!url) throw new Error("Share link API returned no URL.");
     return url;
 }
@@ -1212,8 +1212,9 @@ function renderComposeAttachments(attachments) {
         const newAtts = attachments.filter(a => !_composeUploadedAttIds.has(a.id));
         const docsSection = document.getElementById("compose-documents-section");
         if (newAtts.length === 0) {
-            // All uploaded — hide the entire Documents section
+            // All uploaded — hide the entire Documents section and checkbox
             if (docsSection) docsSection.classList.add("hidden");
+            document.getElementById("compose-attachment-option").classList.add("hidden");
         } else {
             // Show section with only the new attachments
             if (docsSection) docsSection.classList.remove("hidden");
@@ -1325,7 +1326,8 @@ async function handleComposeBundleUpload() {
         }
         saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() });
         document.getElementById("compose-bundle-footer").classList.add("hidden");
-        showComposeStatus(""); renderComposeResult(shareLink);
+        showComposeStatus(""); 
+        renderComposeResult(shareLink);
     } catch (err) {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
