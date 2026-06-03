@@ -353,39 +353,44 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     return url;
 }
 
-async function getShareLink(token, conversationId, docId, access='restricted') {
-    const emailList = await fetch(`${PROXY_BASE}/v1/doc-access/share/${encodeURIComponent(docId)}/list`, {
-        headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" },
-    }).then(resp => {
-        if (!resp.ok) throw new Error("Failed to fetch recipient list (" + resp.status + "): " + resp.statusText);
+async function getShareLink(token, conversationId, docId, access = 'restricted') {
+    // Step 1: fetch current recipient list
+    const emailList = await fetch(
+        `${PROXY_BASE}/v1/doc-access/share/${encodeURIComponent(docId)}/list`,
+        { headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" } }
+    ).then(resp => {
+        if (!resp.ok) throw new Error("Recipient list fetch failed (" + resp.status + ")");
         return resp.json();
     }).then(data => {
         const users = data.users || [];
-        return users.map(u => u.email).filter(email => !!email);
+        // emailList is a flat array of email strings
+        return users.map(u => u.email).filter(Boolean);
     }).catch(err => {
         console.warn("Could not fetch recipient list:", err.message);
         return [];
     });
 
-    const filterEmails = emailList.users.filter(u => u.email).map(u => u.email);
-
-    const resp = await fetch(`${PROXY_BASE}/v1/document/${encodeURIComponent(docId)}/share`, {
-        method:"POST",
-        headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" },
+    // Step 2: POST to share endpoint
+    const resp = await fetch(
+        `${PROXY_BASE}/v1/document/${encodeURIComponent(docId)}/share`,
+        {
+            method: "POST",
+            headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true", "Content-Type": "application/json" },
             body: JSON.stringify({
-                receivers: filterEmails.map(email => ({ email })),
-                allowed_domains: ["*"], 
-                roles_allowed: [access], 
-                expire_in_secs: 30 * 24 * 60 * 60, 
-                allow_download: false, 
-                allow_handsfree: false, 
-                text_notes: [""], 
-                voice_notes: [], 
+                receivers:        emailList.map(email => ({ email })),
+                allowed_domains:  ["*"],
+                roles_allowed:    [access],
+                expire_in_secs:   30 * 24 * 60 * 60,
+                allow_download:   false,
+                allow_handsfree:  false,
+                text_notes:       [""],
+                voice_notes:      [],
             }),
-    });
+        }
+    );
     if (!resp.ok) throw new Error("Share link API failed (" + resp.status + "): " + await resp.text());
     const data = await resp.json();
-    const url = data.share-url || "";
+    const url = data["share-url"]|| "";
     if (!url) throw new Error("Share link API returned no URL.");
     return url;
 }
@@ -669,31 +674,6 @@ function renderShareSection(shareInfo) {
         } catch (err) { showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false; }
     };
 }
-
-async function createRecipientList(data) {
-    await fetch(`${PROXY_BASE}/v1/doc-access/share/${encodeURIComponent(data.docId)}/list`, {
-        headers: { Authorization: "Bearer " + (await getAuthToken()), "ngrok-skip-browser-warning": "true" },
-    })
-    .then(resp => {
-        if (!resp.ok) throw new Error("Failed to fetch recipient list (" + resp.status + "): " + resp.statusText);
-        return resp.json();
-    })
-    .then(listData => {
-        data.users = listData.users || [];
-    })
-    .catch(err => {
-        console.warn("Could not fetch recipient list:", err.message);
-        data.users = [];
-    });
-    const recipients = (data.users || []).map(u => ({
-        id: u.user_id || u.id || null,
-        email: u.email || null,
-        name: u.name || (u.email ? u.email.split("@")[0] : "Unknown") || "Unknown",
-        user_type: u.user_type || "business",
-    }));
-    return recipients;
-}
-
 function insertShareLinkIntoBody(link, filename) {
     return new Promise((resolve) => {
         const html = `<p style="font-family:sans-serif;margin:8px 0;">`
@@ -1324,8 +1304,8 @@ async function handleComposeBundleUpload() {
         showComposeStatus("Creating share link\u2026");
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
-        const shareLink = await getShareLink(token, conversationId, documentId, 'restricted');
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
+        const shareLink = await getShareLink(token, conversationId, documentId, "restricted");
         await insertShareLinkIntoBody(shareLink, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         // Store session state so post-upload rendering knows what was uploaded
@@ -1407,9 +1387,9 @@ async function handleComposeSingleUpload(index) {
         showComposeStatus("Creating share link\u2026");
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
-        const shareLink = await getShareLink(token, conversationId, documentId, 'restricted');
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        await insertShareLinkIntoBody(shareLink, primaryAtt.name);
+        const shareLink = await getShareLink(token, conversationId, documentId, "restricted");
+        await insertShareLinkIntoBody(shareLink, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
         // Clear flag after short delay then force refresh
