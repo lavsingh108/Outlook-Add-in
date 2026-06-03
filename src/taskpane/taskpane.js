@@ -41,6 +41,7 @@ let _composeConversationCtx    = null;       // { conversationId, documentId } a
 let _composeUploadedAttIds     = new Set();  // att.id values uploaded this compose session
 let _composeSharedRecipients   = new Set();  // recipient emails already shared with
 let _composeRefreshTimer       = null;        // debounce timer for change events
+let _chatFromCompose           = false;       // true when chat opened from compose mode
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -708,6 +709,22 @@ function renderComposeResult(link) {
     // Curate button — already in HTML
     const curateBtn = document.getElementById("btn-curate-link");
     if (curateBtn) curateBtn.onclick = () => window.open(link, "_blank");
+    const startChatBtn = document.getElementById("btn-compose-start-chat");
+    if (startChatBtn) {
+        startChatBtn.classList.remove("hidden");
+        startChatBtn.onclick = async () => {
+            if (!_composeConversationCtx) return;
+            startChatBtn.disabled = true;
+            try {
+                const token = await getAuthToken();
+                _chatFromCompose = true;
+                await enterChat(_composeConversationCtx.conversationId, _composeConversationCtx.documentId, token);
+            } catch (err) {
+                showComposeStatus("Error: " + err.message); clearToken();
+                startChatBtn.disabled = false;
+            }
+        };
+    }
     document.getElementById("compose-result").classList.remove("hidden");
     document.getElementById("compose-result").scrollIntoView({ behavior:"smooth" });
 }
@@ -1038,6 +1055,15 @@ async function handleReadAddToExisting(index) {
 
 function switchToReadView() {
     document.getElementById("view-chat").classList.add("hidden");
+    if (_chatFromCompose) {
+        _chatFromCompose = false;
+        document.getElementById("view-compose").classList.remove("hidden");
+        document.getElementById("btn-back").classList.add("hidden");
+        document.getElementById("chat-history").innerHTML = "";
+        hideSuggestions();
+        state.currentConversationId = null; state.currentDocumentId = null;
+        return;
+    }
     document.getElementById("view-read").classList.remove("hidden");
     document.getElementById("btn-back").classList.add("hidden");
     document.getElementById("chat-history").innerHTML = "";
@@ -1070,6 +1096,7 @@ function initCompose() {
         document.getElementById("compose-new-recipients")?.remove();
         document.getElementById("compose-documents-section")?.classList.remove("hidden");
         document.getElementById("compose-attachment-option")?.classList.remove("hidden");
+        document.getElementById("btn-compose-start-chat")?.classList.add("hidden");
         loadComposeData(true);
     };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
