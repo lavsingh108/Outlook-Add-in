@@ -1304,6 +1304,11 @@ async function handleComposeAddToBundle(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         _composeUploadedAttIds.add(att.id);
+        // Remove all attachments from email if checkbox is checked
+        const allAttIds = _composeAttachments.map(a => a.id);
+        state.suppressAttachmentRefresh = true;
+        await removeAttachmentIfRequested(allAttIds);
+        setTimeout(() => { state.suppressAttachmentRefresh = false; }, 1500);
         // Hide the attachment row and the whole Documents section immediately
         const uploadBtn = btn || document.querySelector(`.btn-upload-share[data-index="${index}"]`);
         if (uploadBtn) uploadBtn.closest(".att-item")?.remove();
