@@ -836,6 +836,17 @@ html, body {
 }
 .btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
 
+/* ── Compose result Start Chat button ──────────────────────────── */
+.btn-start-chat-compose {
+    width: 100%;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-start-chat-compose.hidden { display: none !important; }
+
 /* ── All-added disabled footer button ──────────────────────────── */
 #btn-upload-bundle:disabled {
     background: #e0e0e0 !important;
