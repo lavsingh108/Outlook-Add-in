@@ -21,7 +21,8 @@ const SCOPES           = ["openid", "profile", "email", "User.Read"];
 const msalConfig = {
     auth: {
         clientId:    AZURE_CLIENT_ID,
-        authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
+        // authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
+        authority:   "https://login.microsoftonline.com/" + "common",
         redirectUri: window.location.href.split("?")[0],
     },
     cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
@@ -1115,7 +1116,51 @@ function renderComposeAttachments(attachments) {
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         renderIndividualComposeList(attachments, list);
     }
+    // After an upload, check for new recipients or new attachments
+    if (_composeConversationCtx) renderPostUploadActions();
 }
+
+function renderPostUploadActions() {
+    const newRecipients = _composeRecipients.filter(e => !_composeSharedRecipients.has(e));
+    let section = document.getElementById("compose-new-recipients");
+    if (newRecipients.length > 0) {
+        if (!section) {
+            section = document.createElement("div");
+            section.id = "compose-new-recipients";
+            section.className = "compose-section";
+            document.getElementById("compose-status").insertAdjacentElement("beforebegin", section);
+        }
+        section.innerHTML = `
+            <div class="compose-section-header">
+                <span class="compose-section-title">New Recipients</span>
+                <span class="compose-badge">${newRecipients.length}</span>
+            </div>
+            <div class="recipient-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px">
+                ${newRecipients.map(e => `<span class="recipient-chip">${escHtml(e)}</span>`).join("")}
+            </div>
+            <button class="btn-primary btn-share-new-recip" style="width:100%">
+                Share with New Recipients
+            </button>`;
+        section.querySelector(".btn-share-new-recip").onclick = async () => {
+            const btn = section.querySelector(".btn-share-new-recip");
+            btn.disabled = true; btn.textContent = "Sharing\u2026";
+            try {
+                const token = await getAuthToken();
+                await callShareApi(token, _composeConversationCtx.conversationId,
+                    _composeConversationCtx.documentId, _senderEmail, newRecipients);
+                newRecipients.forEach(e => _composeSharedRecipients.add(e));
+                btn.textContent = "\u2713 Shared with New Recipients";
+                btn.classList.add("btn-shared-done");
+            } catch (err) {
+                showComposeStatus("Share failed: " + err.message); clearToken();
+                btn.disabled = false; btn.textContent = "Share with New Recipients";
+            }
+        };
+    } else if (section) {
+        section.remove();
+    }
+}
+
 async function handleComposeBundleUpload() {
     const bundleFooter = document.getElementById("compose-bundle-footer");
     const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
