@@ -1200,8 +1200,13 @@ function renderPostUploadActions() {
                 await callShareApi(token, _composeConversationCtx.conversationId,
                     _composeConversationCtx.documentId, _senderEmail, newRecipients);
                 newRecipients.forEach(e => _composeSharedRecipients.add(e));
-                btn.textContent = "\u2713 Shared with New Recipients";
+                btn.textContent = "\u2713 Shared";
                 btn.classList.add("btn-shared-done");
+                // Hide the section after 3s
+                setTimeout(() => {
+                    section.remove();
+                    renderPostUploadActions();
+                }, 3000);
             } catch (err) {
                 showComposeStatus("Share failed: " + err.message); clearToken();
                 btn.disabled = false; btn.textContent = "Share with New Recipients";
@@ -1273,8 +1278,11 @@ async function handleComposeAddToBundle(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         _composeUploadedAttIds.add(att.id);
-        showComposeStatus("");
-        renderComposeAttachments(_composeAttachments);
+        showComposeStatus("\u2713 Added to bundle");
+        setTimeout(() => {
+            showComposeStatus("");
+            renderComposeAttachments(_composeAttachments);
+        }, 3000);
     } catch (err) {
         console.error("Compose add to bundle error:", err);
         showComposeStatus("Error: " + err.message); clearToken();
