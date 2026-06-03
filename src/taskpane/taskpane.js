@@ -1103,21 +1103,24 @@ function renderComposeAttachments(attachments) {
     } else bulkSwitch.disabled = false;
 
     list.innerHTML = "";
-    const resultVisible = !document.getElementById("compose-result").classList.contains("hidden");
+    if (_composeConversationCtx) {
+        document.getElementById("compose-bundle-footer").classList.add("hidden");
+        document.getElementById("chk-compose-bulk").closest("label")?.classList.add("hidden");
+        document.getElementById("clbl-bundle")?.classList.add("hidden");
+        document.getElementById("clbl-individual")?.classList.add("hidden");
+        renderIndividualComposeList(attachments, list);
+        renderPostUploadActions();
+        return;
+    }
+
     if (isComposeBulkMode()) {
-        if (resultVisible) {
-            document.getElementById("compose-bundle-footer").classList.add("hidden");
-        } else {
-            document.getElementById("compose-bundle-footer").classList.remove("hidden");
-            document.getElementById("btn-compose-upload").disabled = false;
-        }
+        document.getElementById("compose-bundle-footer").classList.remove("hidden");
+        document.getElementById("btn-compose-upload").disabled = false;
         renderBundleList(attachments, list);
     } else {
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         renderIndividualComposeList(attachments, list);
     }
-    // After an upload, check for new recipients or new attachments
-    if (_composeConversationCtx) renderPostUploadActions();
 }
 
 function renderPostUploadActions() {
@@ -1187,8 +1190,10 @@ async function handleComposeBundleUpload() {
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
         await insertShareLinkIntoBody(documentURL, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
+        _composeConversationCtx = { conversationId, documentId };
+        allAttIds.forEach(id => _composeUploadedAttIds.add(id));
+        _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         state.suppressAttachmentRefresh = true;
-        await removeAttachmentIfRequested(allAttIds);
         setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
