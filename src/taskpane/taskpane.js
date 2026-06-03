@@ -1142,6 +1142,8 @@ function renderComposeAttachments(attachments) {
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         document.getElementById("compose-attachment-option").classList.add("hidden");
         document.getElementById("btn-compose-upload").disabled = true;
+        // Still check for new recipients even with no attachments
+        if (_composeConversationCtx) renderPostUploadActions();
         return;
     }
     // Show checkbox whenever there are attachments
