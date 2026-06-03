@@ -40,6 +40,8 @@ let _senderEmail          = "";
 let _readShareInfo        = null;
 let _composeConversationCtx    = null;
 let _composeUploadedAttIds     = new Set();
+let _composeSharedRecipients   = new Set();
+let _composeRefreshTimer       = null;
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -993,7 +995,14 @@ function initCompose() {
     document.querySelector(".header-title").textContent = "Share Document";
     document.getElementById("view-compose").classList.remove("hidden");
     document.getElementById("btn-refresh").classList.remove("hidden");
-    document.getElementById("btn-refresh").onclick        = () => { state.suppressAttachmentRefresh = false; _composeConversationCtx = null; _composeUploadedAttIds = new Set(); loadComposeData(true); };
+    document.getElementById("btn-refresh").onclick = () => {
+        clearTimeout(_composeRefreshTimer);
+        state.suppressAttachmentRefresh = false;
+        _composeConversationCtx  = null;
+        _composeUploadedAttIds   = new Set();
+        _composeSharedRecipients = new Set();
+        loadComposeData(true);
+    };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -1003,16 +1012,22 @@ function initCompose() {
     // an attachment or changes recipients, removing the need to manually refresh.
     // Requires Mailbox 1.8 (AttachmentsChanged) / 1.7 (RecipientsChanged).
     // The refresh button stays as a fallback for older clients.
+    // Debounce — Outlook fires these events multiple times for a single user
+    // action (e.g. adding one recipient triggers 3–4 RecipientsChanged events).
+    // Wait 400ms after the last event before refreshing.
+    const debouncedRefresh = () => {
+        if (state.suppressAttachmentRefresh) return;
+        clearTimeout(_composeRefreshTimer);
+        _composeRefreshTimer = setTimeout(() => loadComposeData(true), 400);
+    };
     if (Office.context.requirements.isSetSupported("Mailbox", "1.8")) {
         Office.context.mailbox.item.addHandlerAsync(
-            Office.EventType.AttachmentsChanged,
-            () => loadComposeData(true)
+            Office.EventType.AttachmentsChanged, debouncedRefresh
         );
     }
     if (Office.context.requirements.isSetSupported("Mailbox", "1.7")) {
         Office.context.mailbox.item.addHandlerAsync(
-            Office.EventType.RecipientsChanged,
-            () => loadComposeData(true)
+            Office.EventType.RecipientsChanged, debouncedRefresh
         );
     }
 }
@@ -1194,6 +1209,7 @@ async function handleComposeBundleUpload() {
         allAttIds.forEach(id => _composeUploadedAttIds.add(id));
         _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         state.suppressAttachmentRefresh = true;
+        await removeAttachmentIfRequested(allAttIds);
         setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
