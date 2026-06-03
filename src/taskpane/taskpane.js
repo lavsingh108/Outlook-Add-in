@@ -21,8 +21,7 @@ const SCOPES           = ["openid", "profile", "email", "User.Read"];
 const msalConfig = {
     auth: {
         clientId:    AZURE_CLIENT_ID,
-        // authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
-        authority:   "https://login.microsoftonline.com/" + "common",
+        authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
         redirectUri: window.location.href.split("?")[0],
     },
     cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
@@ -34,14 +33,14 @@ const state = { currentConversationId: null, currentDocumentId: null, suppressAt
 let _msal                 = null;
 let _cachedSmartBlueToken = null;
 let _customProps          = null;
-let _composeAttachments   = [];
-let _composeRecipients    = [];
-let _senderEmail          = "";
-let _readShareInfo        = null;
-let _composeConversationCtx    = null;
-let _composeUploadedAttIds     = new Set();
-let _composeSharedRecipients   = new Set();
-let _composeRefreshTimer       = null;
+let _composeAttachments        = [];
+let _composeRecipients         = [];
+let _senderEmail               = "";
+let _readShareInfo             = null;  // share link found in email body; set in initRead
+let _composeConversationCtx    = null;       // { conversationId, documentId } after first compose upload
+let _composeUploadedAttIds     = new Set();  // att.id values uploaded this compose session
+let _composeSharedRecipients   = new Set();  // recipient emails already shared with
+let _composeRefreshTimer       = null;        // debounce timer for change events
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -317,6 +316,9 @@ async function uploadSupportingById(att, conversationId, token) {
 // ── Remove attachment helper ──────────────────────────────────────────────
 // Only works for attachments the add-in can control; user-added attachments
 // will be rejected by Outlook — the error is caught and warned, not thrown.
+// attachmentIds: single id string OR array of ids (primary + supporting docs).
+// removeAttachmentAsync accepts one id at a time — iterate and remove sequentially.
+// Always resolves — user-added attachments fail silently (non-fatal).
 async function removeAttachmentIfRequested(attachmentIds) {
     const checkbox = document.getElementById("chk-include-attachment");
     if (!checkbox || !checkbox.checked) return;
@@ -583,7 +585,7 @@ function renderIndividualComposeList(attachments, container) {
                     <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
                     <div class="att-meta">${formatBytes(att.size)}</div>
                 </div>
-                <button class="${btnClass}" data-index="${index}"
+                <button class="${btnClass}" data-index="${index}" data-att-id="${att.id}"
                     ${alreadyUploaded ? 'disabled' : ''}>${btnLabel}</button>
             </div>`;
         container.appendChild(div);
@@ -646,6 +648,8 @@ function insertShareLinkIntoBody(link, filename) {
 }
 function renderComposeResult(link) {
     document.getElementById("result-link-text").textContent = link;
+    // Replace copy button with Curate button
+    // btn-copy-link may already be btn-curate-link from a previous upload
     const copyBtn = document.getElementById("btn-copy-link") || document.getElementById("btn-curate-link");
     if (copyBtn) {
         copyBtn.id        = "btn-curate-link";
@@ -694,7 +698,7 @@ function initRead() {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
             if (shareInfo && shareInfo.conversationId) {
-                _readShareInfo = shareInfo;
+                _readShareInfo = shareInfo;  // persist for attachment rendering
                 renderShareSection(shareInfo);
             }
 
@@ -702,12 +706,17 @@ function initRead() {
                 .then(cp => {
                     _customProps = cp;
 
+                    // Always render Previous Chats and attachments first —
+                    // this ensures ALL thread emails show the shared context
+                    // (via the synthetic share-link record in renderPreviousChats).
                     renderPreviousChats();
                     loadReadAttachments();
                     const atts = Office.context.mailbox.item.attachments || [];
                     if (shareInfo && shareInfo.conversationId && atts.length > 0)
                         document.getElementById("read-or-divider").classList.remove("hidden");
 
+                    // Auto-open: only resume a stored primary record (not share-link only).
+                    // Share link has its own Start Chat button — no silent auto-open.
                     const cpPrimary = Object.values(getConversationMap(cp))
                         .filter(r => r.uploadType !== "shared-link");
                     const thPrimary = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
@@ -1135,6 +1144,12 @@ function renderComposeAttachments(attachments) {
     } else bulkSwitch.disabled = false;
 
     list.innerHTML = "";
+
+    // After an upload has completed, always use individual rendering.
+    // This lets each attachment show its own state independently:
+    //   already uploaded → "✓ Shared" (disabled)
+    //   new attachment   → "Add to Bundle"
+    // The bundle toggle is hidden so the user cannot switch back to bundle UI.
     if (_composeConversationCtx) {
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         document.getElementById("chk-compose-bulk").closest("label")?.classList.add("hidden");
@@ -1210,7 +1225,7 @@ function renderPostUploadActions() {
             }
         };
     } else if (section) {
-        section.remove();
+        section.remove(); // no new recipients — hide the section
     }
 }
 
@@ -1264,7 +1279,13 @@ async function handleComposeBundleUpload() {
 // Add a compose attachment as supporting doc to the already-uploaded conversation
 async function handleComposeAddToBundle(index) {
     if (!_composeConversationCtx) return;
-    const att = _composeAttachments[index];
+    // Use data-att-id to find the correct attachment regardless of filtered index
+    const btn = document.querySelector(`.btn-upload-share[data-index="${index}"]`);
+    const attId = btn?.dataset.attId;
+    const att = attId
+        ? _composeAttachments.find(a => a.id === attId)
+        : _composeAttachments[index];
+    if (!att) return;
     document.querySelectorAll(".btn-upload-share").forEach(b => b.disabled = true);
     showComposeStatus("Adding " + att.name + " to bundle\u2026");
     try {
@@ -1278,9 +1299,10 @@ async function handleComposeAddToBundle(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         _composeUploadedAttIds.add(att.id);
-        // Hide the attachment row immediately
-        const btn = document.querySelector(`.btn-upload-share[data-index="${index}"]`);
-        if (btn) btn.closest(".att-item")?.remove();
+        // Hide the attachment row and the whole Documents section immediately
+        const uploadBtn = btn || document.querySelector(`.btn-upload-share[data-index="${index}"]`);
+        if (uploadBtn) uploadBtn.closest(".att-item")?.remove();
+        document.getElementById("compose-documents-section")?.classList.add("hidden");
         // Flash status for 3s then clear
         showComposeStatus("\u2713 Added to bundle");
         setTimeout(() => showComposeStatus(""), 3000);
@@ -1336,7 +1358,7 @@ async function handleComposeSingleUpload(index) {
         document.querySelectorAll(".btn-upload-share").forEach(b => {
             const btnIndex = parseInt(b.dataset.index);
             if (succeeded && btnIndex === index) {
-                b.textContent = "\u2713 Shared";
+                b.textContent = "\u2713 Shared";   // ✓ Shared
                 b.disabled = true;
                 b.classList.add("btn-shared-done");
             } else {
