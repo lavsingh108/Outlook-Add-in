@@ -488,8 +488,10 @@ function updateBundleSelection(container) {
         const idx = item.dataset.index; const isPrimary = idx === primaryVal;
         const secChk = item.querySelector("input[name='secondaryIndex']");
         item.classList.toggle("is-primary", isPrimary);
-        if (isPrimary) { secChk.checked = false; secChk.disabled = true; }
-        else { secChk.disabled = false; if (!secChk.dataset.userUnchecked) secChk.checked = true; }
+        if (secChk) {
+            if (isPrimary) { secChk.checked = false; secChk.disabled = true; }
+            else { secChk.disabled = false; if (!secChk.dataset.userUnchecked) secChk.checked = true; }
+        }
     });
 }
 document.addEventListener("change", (e) => {
@@ -642,7 +644,7 @@ function insertShareLinkIntoBody(link, filename) {
 }
 function renderComposeResult(link) {
     document.getElementById("result-link-text").textContent = link;
-    const copyBtn = document.getElementById("btn-copy-link");
+    const copyBtn = document.getElementById("btn-copy-link") || document.getElementById("btn-curate-link");
     if (copyBtn) {
         copyBtn.id        = "btn-curate-link";
         copyBtn.title     = "Open in SmartBlue";
@@ -1001,6 +1003,11 @@ function initCompose() {
         _composeConversationCtx  = null;
         _composeUploadedAttIds   = new Set();
         _composeSharedRecipients = new Set();
+        // Restore UI hidden during post-upload state
+        document.getElementById("clbl-bundle")?.classList.remove("hidden");
+        document.getElementById("clbl-individual")?.classList.remove("hidden");
+        document.getElementById("chk-compose-bulk").closest("label")?.classList.remove("hidden");
+        document.getElementById("compose-new-recipients")?.remove();
         loadComposeData(true);
     };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
@@ -1042,11 +1049,13 @@ function onComposeToggleMode() {
 }
 function loadComposeData(isRefresh) {
     if (state.suppressAttachmentRefresh) {
+        // Upload just completed — ignore event-driven refreshes until user clicks Refresh
         document.getElementById("btn-refresh").classList.remove("spinning");
         return;
     }
     if (isRefresh) {
         document.getElementById("btn-refresh").classList.add("spinning");
+        // Only hide result card if no upload has happened yet this session
         if (!_composeConversationCtx) {
             document.getElementById("compose-result").classList.add("hidden");
         }
@@ -1280,6 +1289,7 @@ async function handleComposeSingleUpload(index) {
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
         _composeConversationCtx = { conversationId, documentId };
         _composeUploadedAttIds.add(att.id);
+        _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         succeeded = true;
         showComposeStatus(""); 
         renderComposeResult(documentURL);
