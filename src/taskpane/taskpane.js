@@ -1189,6 +1189,7 @@ async function handleComposeBundleUpload() {
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested(allAttIds);
+        setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
@@ -1246,6 +1247,7 @@ async function handleComposeSingleUpload(index) {
         await insertShareLinkIntoBody(documentURL, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
+        setTimeout(() => { state.suppressAttachmentRefresh = false; loadComposeData(true); }, 1500);
         if (_customProps) {
             saveConversationRecord(_customProps, `compose_${conversationId}`, {
                 conversationId, documentId,
