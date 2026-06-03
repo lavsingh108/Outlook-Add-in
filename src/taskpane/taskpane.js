@@ -1023,6 +1023,7 @@ function initCompose() {
         document.getElementById("chk-compose-bulk").closest("label")?.classList.remove("hidden");
         document.getElementById("compose-new-recipients")?.remove();
         document.getElementById("compose-documents-section")?.classList.remove("hidden");
+        document.getElementById("compose-attachment-option")?.classList.remove("hidden");
         loadComposeData(true);
     };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
@@ -1135,9 +1136,13 @@ function renderComposeAttachments(attachments) {
     if (!attachments.length) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
         document.getElementById("compose-bundle-footer").classList.add("hidden");
+        document.getElementById("compose-attachment-option").classList.add("hidden");
         document.getElementById("btn-compose-upload").disabled = true;
         return;
     }
+    // Show checkbox whenever there are attachments
+    document.getElementById("compose-attachment-option").classList.remove("hidden");
+    // Disable the toggle when there is only one attachment — bundle makes no sense
     if(attachments.length === 1) {
         bulkSwitch.checked = false;
         bulkSwitch.disabled = true;
@@ -1303,6 +1308,7 @@ async function handleComposeAddToBundle(index) {
         const uploadBtn = btn || document.querySelector(`.btn-upload-share[data-index="${index}"]`);
         if (uploadBtn) uploadBtn.closest(".att-item")?.remove();
         document.getElementById("compose-documents-section")?.classList.add("hidden");
+        document.getElementById("compose-attachment-option")?.classList.add("hidden");
         // Flash status for 3s then clear
         showComposeStatus("\u2713 Added to bundle");
         setTimeout(() => showComposeStatus(""), 3000);
