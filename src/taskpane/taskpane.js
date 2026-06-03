@@ -1325,7 +1325,7 @@ async function handleComposeBundleUpload() {
         }
         saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() });
         document.getElementById("compose-bundle-footer").classList.add("hidden");
-        showComposeStatus(""); renderComposeResult(documentURL);
+        showComposeStatus(""); renderComposeResult(shareLink);
     } catch (err) {
         console.error("Compose bundle upload error:", err); showComposeStatus("Error: " + err.message); clearToken();
     } finally { uploadBtn.disabled = false; }
@@ -1408,7 +1408,7 @@ async function handleComposeSingleUpload(index) {
         _composeRecipients.forEach(e => _composeSharedRecipients.add(e));
         succeeded = true;
         showComposeStatus("");
-        renderComposeResult(documentURL);
+        renderComposeResult(shareLink);
         // Re-render list so remaining buttons switch to "Add to Bundle"
         renderComposeAttachments(_composeAttachments);
     } catch (err) {
