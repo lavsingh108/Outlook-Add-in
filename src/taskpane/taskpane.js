@@ -1099,6 +1099,7 @@ function initCompose() {
         document.getElementById("btn-compose-start-chat")?.classList.add("hidden");
         loadComposeData(true);
     };
+    document.getElementById("btn-back").onclick           = switchToReadView;
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
