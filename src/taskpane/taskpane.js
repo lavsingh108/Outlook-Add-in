@@ -437,6 +437,37 @@ function askQuestion(token, conversationId, text) {
     });
 }
 
+// ── Compose preferences (persisted via roamingSettings) ─────────────────
+function loadComposePrefs() {
+    try {
+        const rs            = Office.context.roamingSettings;
+        const removeChecked = rs.get("sb_pref_remove_attachment");
+        const accessLevel   = rs.get("sb_pref_access_level");
+        if (removeChecked !== undefined && removeChecked !== null) {
+            const chk = document.getElementById("chk-include-attachment");
+            if (chk) chk.checked = !!removeChecked;
+        }
+        if (accessLevel) {
+            _composeAccessLevel = accessLevel;
+            const sel = document.getElementById("sel-access");
+            if (sel) sel.value = accessLevel;
+        }
+    } catch (e) { console.warn("loadComposePrefs failed:", e.message); }
+}
+function saveComposePrefs() {
+    try {
+        const rs  = Office.context.roamingSettings;
+        const chk = document.getElementById("chk-include-attachment");
+        const sel = document.getElementById("sel-access");
+        if (chk) rs.set("sb_pref_remove_attachment", chk.checked);
+        if (sel) rs.set("sb_pref_access_level", sel.value);
+        rs.saveAsync(r => {
+            if (r.status !== Office.AsyncResultStatus.Succeeded)
+                console.warn("saveComposePrefs failed:", r.error?.message);
+        });
+    } catch (e) { console.warn("saveComposePrefs failed:", e.message); }
+}
+
 // ── Status ─────────────────────────────────────────────────────────────────
 function showReadStatus(msg)    { const el = document.getElementById("status-msg");    if (el) el.innerText = msg; }
 function showComposeStatus(msg) { document.getElementById("compose-status").innerText = msg; }
@@ -1152,7 +1183,10 @@ function initCompose() {
     document.getElementById("sel-access").value           = _composeAccessLevel;
     document.getElementById("sel-access").onchange = () => {
         _composeAccessLevel = document.getElementById("sel-access").value;
+        saveComposePrefs();
     };
+    document.getElementById("chk-include-attachment").onchange = () => saveComposePrefs();
+    loadComposePrefs(); // restore persisted prefs on compose open
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
