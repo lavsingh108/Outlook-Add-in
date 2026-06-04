@@ -1298,13 +1298,15 @@ function renderComposeAttachments(attachments) {
         list.innerHTML = `<div class="compose-empty">No attachments yet. Attach a document then click &#8635; Refresh.</div>`;
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         document.getElementById("compose-attachment-option").classList.add("hidden");
+        document.getElementById("compose-access-row")?.classList.add("hidden");
         document.getElementById("btn-compose-upload").disabled = true;
         // Still check for new recipients even with no attachments
         if (_composeConversationCtx) renderPostUploadActions();
         return;
     }
-    // Show checkbox whenever there are attachments
+    // Show checkbox and access dropdown whenever there are attachments
     document.getElementById("compose-attachment-option").classList.remove("hidden");
+    if (!_composeConversationCtx) document.getElementById("compose-access-row")?.classList.remove("hidden");
     // Disable the toggle when there is only one attachment — bundle makes no sense
     if(attachments.length === 1) {
         bulkSwitch.checked = false;
