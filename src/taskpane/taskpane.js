@@ -1148,6 +1148,9 @@ function initCompose() {
     };
     document.getElementById("btn-back").onclick           = switchToReadView;
     document.getElementById("sel-access").value           = _composeAccessLevel;
+    document.getElementById("sel-access").onchange        = () => {
+        _composeAccessLevel = document.getElementById("sel-access").value;
+    };
     document.getElementById("btn-save-access").onclick    = () => {
         _composeAccessLevel = document.getElementById("sel-access").value;
         const btn = document.getElementById("btn-save-access");
@@ -1388,7 +1391,8 @@ async function handleComposeBundleUpload() {
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        const shareLink = await getShareLink(token, conversationId, documentId, _composeAccessLevel);
+        const accessLevel = document.getElementById("sel-access")?.value || _composeAccessLevel;
+        const shareLink = await getShareLink(token, conversationId, documentId, accessLevel);
         await insertShareLinkIntoBody(shareLink, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         // Store session state so post-upload rendering knows what was uploaded
@@ -1472,7 +1476,8 @@ async function handleComposeSingleUpload(index) {
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        const shareLink = await getShareLink(token, conversationId, documentId, _composeAccessLevel);
+        const accessLevel = document.getElementById("sel-access")?.value || _composeAccessLevel;
+        const shareLink = await getShareLink(token, conversationId, documentId, accessLevel);
         await insertShareLinkIntoBody(shareLink, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
