@@ -756,6 +756,7 @@ function renderComposeResult(link) {
             }
         };
     }
+    document.getElementById("compose-access-row")?.classList.add("hidden");
     document.getElementById("compose-result").classList.remove("hidden");
     document.getElementById("compose-result").scrollIntoView({ behavior:"smooth" });
 }
@@ -1144,18 +1145,13 @@ function initCompose() {
         document.getElementById("compose-documents-section")?.classList.remove("hidden");
         document.getElementById("compose-attachment-option")?.classList.remove("hidden");
         document.getElementById("btn-compose-start-chat")?.classList.add("hidden");
+        document.getElementById("compose-access-row")?.classList.remove("hidden");
         loadComposeData(true);
     };
     document.getElementById("btn-back").onclick           = switchToReadView;
     document.getElementById("sel-access").value           = _composeAccessLevel;
-    document.getElementById("sel-access").onchange        = () => {
+    document.getElementById("sel-access").onchange = () => {
         _composeAccessLevel = document.getElementById("sel-access").value;
-    };
-    document.getElementById("btn-save-access").onclick    = () => {
-        _composeAccessLevel = document.getElementById("sel-access").value;
-        const btn = document.getElementById("btn-save-access");
-        btn.textContent = "\u2713 Saved"; btn.classList.add("saved");
-        setTimeout(() => { btn.textContent = "Save"; btn.classList.remove("saved"); }, 1500);
     };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;

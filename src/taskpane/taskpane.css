@@ -864,22 +864,6 @@ html, body {
     outline: none;
 }
 .compose-access-select:focus { border-color: #1A73E8; }
-.btn-save-access {
-    height: 30px;
-    padding: 0 12px;
-    border-radius: 6px;
-    border: 1px solid #1A73E8;
-    background: #fff;
-    color: #1A73E8;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s;
-    white-space: nowrap;
-}
-.btn-save-access:hover { background: #E8F0FE; }
-.btn-save-access.saved { background: #E8F5E9; color: #2e7d32; border-color: #2e7d32; }
-
 /* ── Compose result Start Chat button ──────────────────────────── */
 .btn-start-chat-compose {
     width: 100%;
