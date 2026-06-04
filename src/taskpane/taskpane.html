@@ -73,8 +73,18 @@
 
             </div><!-- /compose-body -->
 
-            <!-- Sticky bottom: checkbox + footer + status + result card -->
+            <!-- Sticky bottom: access + checkbox + footer + status + result card -->
             <div id="compose-sticky-bottom">
+
+            <!-- Access level selector -->
+            <div id="compose-access-row" class="compose-access-row">
+                <label class="compose-access-label" for="sel-access">Access</label>
+                <select id="sel-access" class="compose-access-select">
+                    <option value="restricted" selected>Restricted</option>
+                    <option value="anonymous">Anonymous</option>
+                </select>
+                <button id="btn-save-access" class="btn-save-access">Save</button>
+            </div>
 
             <!-- Remove attachment checkbox — shown for both bundle and individual modes -->
             <div id="compose-attachment-option" class="compose-attachment-option hidden">

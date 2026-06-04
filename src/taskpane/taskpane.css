@@ -836,6 +836,50 @@ html, body {
 }
 .btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
 
+/* ── Access level row ───────────────────────────────────────────── */
+.compose-access-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #e3e8f0;
+    margin-bottom: 4px;
+}
+.compose-access-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5f6b7a;
+    min-width: 44px;
+}
+.compose-access-select {
+    flex: 1;
+    height: 30px;
+    border: 1px solid #d0d7e2;
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+    color: #1a2332;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+}
+.compose-access-select:focus { border-color: #1A73E8; }
+.btn-save-access {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    border: 1px solid #1A73E8;
+    background: #fff;
+    color: #1A73E8;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-save-access:hover { background: #E8F0FE; }
+.btn-save-access.saved { background: #E8F5E9; color: #2e7d32; border-color: #2e7d32; }
+
 /* ── Compose result Start Chat button ──────────────────────────── */
 .btn-start-chat-compose {
     width: 100%;

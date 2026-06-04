@@ -21,7 +21,7 @@ const SCOPES           = ["openid", "profile", "email", "User.Read"];
 const msalConfig = {
     auth: {
         clientId:    AZURE_CLIENT_ID,
-        authority:   "https://login.microsoftonline.com/" + "common",
+        authority:   "https://login.microsoftonline.com/common", // multi-tenant
         redirectUri: window.location.href.split("?")[0],
     },
     cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
@@ -42,6 +42,7 @@ let _composeUploadedAttIds     = new Set();  // att.id values uploaded this comp
 let _composeSharedRecipients   = new Set();  // recipient emails already shared with
 let _composeRefreshTimer       = null;        // debounce timer for change events
 let _chatFromCompose           = false;       // true when chat opened from compose mode
+let _composeAccessLevel        = "restricted"; // "restricted" | "anonymous"
 
 // ── MSAL / Auth ────────────────────────────────────────────────────────────
 function getMsal() {
@@ -1098,6 +1099,7 @@ async function handleReadAddToExisting(index) {
 
 function switchToReadView() {
     document.getElementById("view-chat").classList.add("hidden");
+    // Return to compose if chat was opened from compose mode
     if (_chatFromCompose) {
         _chatFromCompose = false;
         document.getElementById("view-compose").classList.remove("hidden");
@@ -1145,6 +1147,13 @@ function initCompose() {
         loadComposeData(true);
     };
     document.getElementById("btn-back").onclick           = switchToReadView;
+    document.getElementById("sel-access").value           = _composeAccessLevel;
+    document.getElementById("btn-save-access").onclick    = () => {
+        _composeAccessLevel = document.getElementById("sel-access").value;
+        const btn = document.getElementById("btn-save-access");
+        btn.textContent = "\u2713 Saved"; btn.classList.add("saved");
+        setTimeout(() => { btn.textContent = "Save"; btn.classList.remove("saved"); }, 1500);
+    };
     document.getElementById("btn-compose-upload").onclick = handleComposeBundleUpload;
     document.getElementById("btn-copy-link").onclick      = copyResultLink;
     document.getElementById("chk-compose-bulk").onchange  = onComposeToggleMode;
@@ -1379,7 +1388,7 @@ async function handleComposeBundleUpload() {
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        const shareLink = await getShareLink(token, conversationId, documentId, "restricted");
+        const shareLink = await getShareLink(token, conversationId, documentId, _composeAccessLevel);
         await insertShareLinkIntoBody(shareLink, primaryAtt.name);
         const allAttIds = [primaryAtt.id, ...secondaryIndices.map(i => _composeAttachments[i].id)];
         // Store session state so post-upload rendering knows what was uploaded
@@ -1463,7 +1472,7 @@ async function handleComposeSingleUpload(index) {
         await callShareApi(token, conversationId, documentId, _senderEmail, _composeRecipients);
         showComposeStatus("Inserting link into email\u2026");
         const documentURL = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
-        const shareLink = await getShareLink(token, conversationId, documentId, "restricted");
+        const shareLink = await getShareLink(token, conversationId, documentId, _composeAccessLevel);
         await insertShareLinkIntoBody(shareLink, att.name);
         state.suppressAttachmentRefresh = true;
         await removeAttachmentIfRequested([att.id]);
