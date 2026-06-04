@@ -212,14 +212,18 @@ function extractShareLinkFromBody() {
             while ((m = anchorRe.exec(html)) !== null) {
                 const linkText = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
                 const parsed   = parseDocUrl(m[1]);
-                if (parsed.conversationId) { resolve({ ...parsed, linkText: linkText || m[1] }); return; }
+                if (parsed.conversationId || parsed.shareId) {
+                    resolve({ ...parsed, linkText: linkText || m[1] }); return;
+                }
             }
             const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
             while ((m = urlRe.exec(html)) !== null) {
                 const parsed = parseDocUrl(m[0]);
-                if (parsed.conversationId) { resolve({ ...parsed, linkText: null }); return; }
+                if (parsed.conversationId || parsed.shareId) {
+                    resolve({ ...parsed, linkText: null }); return;
+                }
             }
-            resolve({ conversationId: null, docId: null, linkText: null });
+            resolve({ conversationId: null, docId: null, shareId: null, linkText: null });
         });
     });
 }
