@@ -1,7 +1,6 @@
 // ── Config ─────────────────────────────────────────────────────────────────
 const PROXY_BASE       = "https://headphone-crust-stipulate.ngrok-free.dev";
 const BLUE_BASE        = "https://demo.smartblue.ai";
-const WS_BASE          = "https://ws.demo.smartblue.ai";
 
 // Domains whose /conversation URLs are treated as SmartBlue share links.
 // Only emails containing a link on one of these domains will show "Start Chat".
@@ -363,7 +362,7 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
 
 async function resolveShareId(shareId, token) {
     const resp = await fetch(
-        `${WS_BASE}/v1/conversation/share/${encodeURIComponent(shareId)}`,
+        `${PROXY_BASE}/v1/conversation/share/${encodeURIComponent(shareId)}`,
         { headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" } }
     );
     if (!resp.ok) throw new Error("Share resolve failed (" + resp.status + "): " + await resp.text());
