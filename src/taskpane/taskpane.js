@@ -21,7 +21,7 @@ const SCOPES           = ["openid", "profile", "email", "User.Read"];
 const msalConfig = {
     auth: {
         clientId:    AZURE_CLIENT_ID,
-        authority:   "https://login.microsoftonline.com/" + AZURE_TENANT_ID,
+        authority:   "https://login.microsoftonline.com/" + "common",
         redirectUri: window.location.href.split("?")[0],
     },
     cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: false },
