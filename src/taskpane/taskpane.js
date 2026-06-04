@@ -822,6 +822,19 @@ function initRead() {
                         getAuthToken()
                             .then(token => enterChat(latest.conversationId, latest.documentId, token))
                             .catch(err => console.warn("Auto-resume failed:", err.message));
+                    } else if (shareInfo && shareInfo.shareId) {
+                        getAuthToken()
+                            .then(async token => {
+                                const { conversationId, docId } = await resolveShareId(shareInfo.shareId, token);
+                                shareInfo.conversationId = conversationId;
+                                shareInfo.docId          = docId;
+                                await enterChat(conversationId, docId, token);
+                            })
+                            .catch(err => console.warn("Share-id auto-open failed:", err.message));
+                    } else if (shareInfo && shareInfo.conversationId) {
+                        getAuthToken()
+                            .then(token => enterChat(shareInfo.conversationId, shareInfo.docId, token))
+                            .catch(err => console.warn("Share link auto-open failed:", err.message));
                     }
                 })
                 .catch(() => {
