@@ -1,6 +1,7 @@
 // ── Config ─────────────────────────────────────────────────────────────────
 const PROXY_BASE       = "https://headphone-crust-stipulate.ngrok-free.dev";
 const BLUE_BASE        = "https://demo.smartblue.ai";
+const WS_BASE          = "https://ws.demo.smartblue.ai";
 
 // Domains whose /conversation URLs are treated as SmartBlue share links.
 // Only emails containing a link on one of these domains will show "Start Chat".
@@ -192,9 +193,11 @@ function parseDocUrl(rawUrl) {
         const docId =
             sp.get("doc-id") || sp.get("doc_id") || sp.get("documentId") || sp.get("did") || null;
 
+        const shareId = sp.get("share-id") || sp.get("shareId") || null;
+        if (shareId) return { conversationId: null, docId: null, shareId, shareUrl: url };
         if (conversationId) return { conversationId, docId, shareUrl: url };
     } catch (_) {}
-    return { conversationId: null, docId: null, shareUrl: null };
+    return { conversationId: null, docId: null, shareId: null, shareUrl: null };
 }
 
 function extractShareLinkFromBody() {
@@ -352,6 +355,20 @@ async function callShareApi(token, conversationId, docId, senderEmail, recipient
     const url  = data.share_url || data.shareUrl || data.url || "";
     if (!url) throw new Error("Share API returned no URL.");
     return url;
+}
+
+async function resolveShareId(shareId, token) {
+    const resp = await fetch(
+        `${WS_BASE}/v1/conversation/share/${encodeURIComponent(shareId)}`,
+        { headers: { Authorization: "Bearer " + token, "ngrok-skip-browser-warning": "true" } }
+    );
+    if (!resp.ok) throw new Error("Share resolve failed (" + resp.status + "): " + await resp.text());
+    const data = await resp.json();
+    const conversationId = data.conversation_id || data.conversationId || null;
+    const docId          = data.doc_id          || data.docId          || null;
+    if (!conversationId) throw new Error("No conversation_id returned from share resolve.");
+    if (!docId)          throw new Error("No doc_id returned from share resolve.");
+    return { conversationId, docId };
 }
 
 async function getShareLink(token, conversationId, docId, access = 'restricted') {
@@ -671,7 +688,17 @@ function renderShareSection(shareInfo) {
         showReadStatus("Signing in\u2026");
         try {
             const token = await getAuthToken();
-            await enterChat(shareInfo.conversationId, shareInfo.docId, token);
+            let { conversationId, docId } = shareInfo;
+            // share-id URL — resolve to conversation/doc IDs first
+            if (!conversationId && shareInfo.shareId) {
+                showReadStatus("Resolving share link\u2026");
+                const resolved = await resolveShareId(shareInfo.shareId, token);
+                conversationId = resolved.conversationId;
+                docId          = resolved.docId;
+                shareInfo.conversationId = conversationId;
+                shareInfo.docId          = docId;
+            }
+            await enterChat(conversationId, docId, token);
         } catch (err) { showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false; }
     };
 }
@@ -760,7 +787,7 @@ function initRead() {
         .then(shareInfo => {
             document.getElementById("view-read-init").classList.add("hidden");
             document.getElementById("view-read").classList.remove("hidden");
-            if (shareInfo && shareInfo.conversationId) {
+            if (shareInfo && (shareInfo.conversationId || shareInfo.shareId)) {
                 _readShareInfo = shareInfo;  // persist for attachment rendering
                 renderShareSection(shareInfo);
             }
