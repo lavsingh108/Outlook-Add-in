@@ -1180,6 +1180,10 @@ function initCompose() {
         loadComposeData(true);
     };
     document.getElementById("btn-back").onclick           = switchToReadView;
+    document.getElementById("btn-send").onclick = sendChatMessage;
+    document.getElementById("user-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+    });
     document.getElementById("sel-access").value           = _composeAccessLevel;
     document.getElementById("sel-access").onchange = () => {
         _composeAccessLevel = document.getElementById("sel-access").value;
