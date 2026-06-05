@@ -241,10 +241,18 @@ function formatBytes(bytes) {
     return (bytes / 1048576).toFixed(1) + " MB";
 }
 function formatResponse(raw, conversationId, documentId) {
-    const doc_url = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
+    const base_url = `${BLUE_BASE}/conversation?conversation-id=${conversationId}&doc-id=${documentId}`;
     let text = raw.replace(
-        /<blueEmbed-doc-page>[^:]+:[^:]+:(\d+)<\/blueEmbed-doc-page>/g,
-        `<a href="${doc_url}" target="_blank" class="page-ref" data-page="$1">pg $1</a>`
+        /<blueEmbed-doc-page>([^<]+)<\/blueEmbed-doc-page>/g,
+        (_, inner) => {
+            const parts      = inner.trim().split(':');
+            const embedDocId = parts[0] || '';
+            const page       = parts[parts.length - 1] || '1';
+            const fragment   = embedDocId && embedDocId !== documentId
+                ? `#sub-doc-id=${encodeURIComponent(embedDocId)}&page=${page}`
+                : `#page=${page}`;
+            return `<a href="${base_url}${fragment}" target="_blank" class="page-ref" data-page="${page}">pg ${page}</a>`;
+        }
     );
     text = text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     const lines = text.split(/\n/);
