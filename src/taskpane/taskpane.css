@@ -836,6 +836,23 @@ html, body {
 }
 .btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
 
+/* ── New recipients inline share button ─────────────────────────── */
+.btn-share-new-recip {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 5px;
+    border: 1px solid #1A73E8;
+    background: #fff;
+    color: #1A73E8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+}
+.btn-share-new-recip:hover  { background: #E8F0FE; }
+.btn-share-new-recip:disabled { opacity: .6; cursor: default; }
+
 /* ── Access level row ───────────────────────────────────────────── */
 .compose-access-row {
     display: flex;

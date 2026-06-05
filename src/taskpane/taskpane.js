@@ -1377,19 +1377,22 @@ function renderPostUploadActions() {
             section = document.createElement("div");
             section.id = "compose-new-recipients";
             section.className = "compose-section";
-            document.getElementById("compose-status").insertAdjacentElement("beforebegin", section);
+            // Insert inside compose-body, right after the recipients section
+            const recipSection = document.getElementById("compose-recipients")?.closest(".compose-section");
+            if (recipSection) recipSection.insertAdjacentElement("afterend", section);
+            else document.getElementById("compose-body")?.appendChild(section);
         }
         section.innerHTML = `
             <div class="compose-section-header">
-                <span class="compose-section-title">New Recipients</span>
+                <span class="compose-section-title" style="font-size:11px;color:#5f6b7a">New Recipients</span>
                 <span class="compose-badge">${newRecipients.length}</span>
+                <button class="btn-share-new-recip">
+                    Share
+                </button>
             </div>
-            <div class="recipient-chips" style="flex-wrap:wrap;gap:4px;margin-bottom:8px">
+            <div class="recipient-chips" style="flex-wrap:wrap;gap:4px;margin-top:4px">
                 ${newRecipients.map(e => `<span class="recipient-chip">${escHtml(e)}</span>`).join("")}
-            </div>
-            <button class="btn-primary btn-share-new-recip" style="width:100%">
-                Share with New Recipients
-            </button>`;
+            </div>`;
         section.querySelector(".btn-share-new-recip").onclick = async () => {
             const btn = section.querySelector(".btn-share-new-recip");
             btn.disabled = true; btn.textContent = "Sharing\u2026";
