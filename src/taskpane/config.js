@@ -1,6 +1,6 @@
 // ── Config & Constants ──────────────────────────────────────────────────────
 
-export const PROXY_BASE = "https://headphone-crust-stipulate.ngrok-free.dev";
+export const PROXY_BASE = "https://headphone-crust-stipulate.ngrok-free.dev"; // This will be the endpoint of the BlueAI backend (this Proxy will forward requests to the BlueAI backend, while also handling CORS and authentication)
 export const BLUE_BASE  = "https://demo.smartblue.ai";
 
 // Domains whose /conversation URLs are treated as SmartBlue share links.
