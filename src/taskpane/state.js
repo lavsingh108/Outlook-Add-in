@@ -26,8 +26,9 @@ export let _composeRefreshTimer       = null;       // debounce timer for change
 export let _composeAccessLevel        = "restricted"; // "restricted" | "anonymous"
 
 // Read-mode state
-export let _readShareInfo  = null;  // share link found in email body; set in initRead
+export let _readShareInfo   = null;  // share link found in email body; set in initRead
 export let _chatFromCompose = false; // true when chat opened from compose mode
+export let _chatFromSent    = false; // true when chat opened from sent mode
 
 // ── Setters (keeps mutation explicit and grep-friendly) ────────────────────
 export function setMsal(instance)               { _msal = instance; }
@@ -43,3 +44,4 @@ export function setComposeRefreshTimer(id)      { _composeRefreshTimer = id; }
 export function setComposeAccessLevel(level)    { _composeAccessLevel = level; }
 export function setReadShareInfo(info)          { _readShareInfo = info; }
 export function setChatFromCompose(val)         { _chatFromCompose = val; }
+export function setChatFromSent(val)            { _chatFromSent = val; }

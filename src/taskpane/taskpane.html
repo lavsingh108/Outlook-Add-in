@@ -216,6 +216,40 @@
         </div><!-- /view-read -->
 
         <!-- ══════════════════════════════════════════════════════
+             SENT INIT VIEW  (loading screen)
+             ══════════════════════════════════════════════════════ -->
+        <div id="view-sent-init" class="view hidden">
+            <div class="read-init-body">
+                <div class="read-spinner-wrap">
+                    <div class="read-spinner"></div>
+                </div>
+                <div class="read-init-status">Reading sent email…</div>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════
+             SENT CONTENT VIEW
+             Shows BlueAI shared documents with "Add to Bundle"
+             ══════════════════════════════════════════════════════ -->
+        <div id="view-sent" class="view hidden">
+
+            <!-- No BlueAI doc found -->
+            <div id="sent-no-doc" class="sent-no-doc hidden">
+                No BlueAI shared documents found in this sent email.
+            </div>
+
+            <!-- Shared documents section -->
+            <div id="sent-share-section" class="read-section hidden">
+                <div class="read-section-label">Shared BlueAI Documents</div>
+                <div id="sent-share-list" class="sent-share-list">
+                    <!-- Cards injected by sentMode.js -->
+                </div>
+            </div>
+
+            <div id="sent-status-msg" class="status-msg"></div>
+        </div><!-- /view-sent -->
+
+                <!-- ══════════════════════════════════════════════════════
              CHAT VIEW
              ══════════════════════════════════════════════════════ -->
         <div id="view-chat" class="view hidden">
