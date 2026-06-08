@@ -232,9 +232,21 @@ export function loadReadAttachments() {
         }
     } else {
         footerDiv.classList.add("hidden");
+
+        // Determine role: the user is the "sender" (original sharer) if
+        // the thread's shared URL conversation matches one of their stored records.
+        const sharedConvId = _readShareInfo?.conversationId;
+        const isSender = !!(sharedConvId && (
+            cpRecords.some(r => r.conversationId === sharedConvId) ||
+            threadRecords.some(r => r.conversationId === sharedConvId)
+        ));
+
         renderIndividualReadList(
-            attachments, listDiv, hasContext,
-            enterChat, handleReadSingleUpload, handleReadAddToExisting
+            attachments, listDiv, hasContext, isSender,
+            enterChat,
+            handleReadSingleUpload,           // receiver: Upload & Chat / sender: Upload & Share
+            handleReadAddToExisting,           // receiver: add to their own context
+            (i) => handleReadAddToSharedBundle(i, sharedConvId)  // sender: add to shared URL bundle
         );
     }
 }
@@ -396,6 +408,48 @@ function _getLatestNonShareRecord() {
 }
 
 // ── Read-mode initialisation ───────────────────────────────────────────────
+
+/**
+ * Sender-only: upload a new attachment as a supporting doc into the
+ * conversation that belongs to the shared URL in the email thread.
+ */
+async function handleReadAddToSharedBundle(index, sharedConvId) {
+    if (!sharedConvId) { showReadStatus("No shared conversation found."); return; }
+
+    // Find the documentId for the shared conversation from stored records
+    const allRecs = [
+        ...Object.values(getConversationMap(_customProps || {})),
+        ...getThreadContextAll(),
+    ];
+    const sharedRec = allRecs.find(r => r.conversationId === sharedConvId);
+    const sharedDocId = sharedRec?.documentId || _readShareInfo?.docId || null;
+
+    const att = Office.context.mailbox.item.attachments[index];
+    document.querySelectorAll(".btn-add-bundle-read, .btn-upload-share-read")
+        .forEach(b => b.disabled = true);
+    showReadStatus("Signing in\u2026");
+    try {
+        const token = await getAuthToken();
+        showReadStatus("Adding " + att.name + " to shared bundle\u2026");
+        await uploadSupportingById(att, sharedConvId, token);
+        if (_customProps) {
+            saveConversationRecord(_customProps, singleFingerprint(att), {
+                conversationId: sharedConvId,
+                documentId:     sharedDocId,
+                label:          att.name,
+                uploadType:     "bundle",
+                timestamp:      Date.now(),
+            }).catch(err => console.warn("customProps save failed:", err.message));
+        }
+        showReadStatus("");
+        await enterChat(sharedConvId, sharedDocId, token);
+    } catch (err) {
+        console.error("Add to shared bundle error:", err);
+        showReadStatus("Error: " + err.message); clearToken();
+        document.querySelectorAll(".btn-add-bundle-read, .btn-upload-share-read")
+            .forEach(b => b.disabled = false);
+    }
+}
 
 export function initRead() {
     document.querySelector(".header-title").textContent = "View Document";

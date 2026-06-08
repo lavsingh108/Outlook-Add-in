@@ -113,50 +113,99 @@ document.addEventListener("change", e => {
  * @param {Function} onSingleUpload  (index) => void
  * @param {Function} onAddToExisting (index) => void
  */
+/**
+ * Render individual attachment rows for READ mode.
+ *
+ * Role-aware: the caller passes role-specific callbacks.
+ *
+ * Sender (owns the shared URL conversation):
+ *   Each unuploaded attachment gets TWO buttons:
+ *     • "Add to Shared Bundle"  → onAddToShared(index)
+ *     • "Upload & Share"        → onUploadAndShare(index)
+ *
+ * Receiver (does NOT own the shared URL):
+ *   Each unuploaded attachment gets ONE button:
+ *     • "Add to My Bundle"  → onAddToExisting(index)   (if they have their own context)
+ *     • "Upload & Chat"     → onSingleUpload(index)     (no context yet)
+ *
+ * @param {object[]}  attachments
+ * @param {HTMLElement} container
+ * @param {boolean}   hasContext      receiver has their own uploaded context
+ * @param {boolean}   isSender        current user owns the thread's shared URL
+ * @param {Function}  onEnterChat     (convId, docId, token) → open chat
+ * @param {Function}  onSingleUpload  (index) → upload and create new context
+ * @param {Function}  onAddToExisting (index) → add to receiver's own context
+ * @param {Function}  onAddToShared   (index) → add to sender's shared URL bundle
+ */
 export function renderIndividualReadList(
-    attachments, container, hasContext,
-    onEnterChat, onSingleUpload, onAddToExisting
+    attachments, container, hasContext, isSender,
+    onEnterChat, onSingleUpload, onAddToExisting, onAddToShared
 ) {
     container.innerHTML = "";
 
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
         div.className = "att-item";
-        const rec      = getAttachmentRecord(att, _customProps);
-        const btnLabel = rec ? "\u25B6 Start Chat" : hasContext ? "Add to Bundle" : "Upload";
-        const btnClass = rec ? "btn-upload-single btn-start-chat-att" : "btn-upload-single";
-        div.innerHTML = `
-            <div class="att-individual-row">
-                <div class="att-info">
-                    <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
-                    <div class="att-meta">${formatBytes(att.size)}</div>
-                </div>
-                <button class="${btnClass}" data-index="${index}">${btnLabel}</button>
-            </div>`;
-        container.appendChild(div);
-    });
+        const rec = getAttachmentRecord(att, _customProps);
 
-    container.querySelectorAll(".btn-upload-single").forEach(btn => {
-        const i = parseInt(btn.dataset.index);
-        const r = getAttachmentRecord(Office.context.mailbox.item.attachments[i], _customProps);
-        if (r) {
-            btn.onclick = async () => {
+        if (rec) {
+            // Already uploaded — Start Chat
+            div.innerHTML = `
+                <div class="att-individual-row">
+                    <div class="att-info">
+                        <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
+                        <div class="att-meta">${formatBytes(att.size)}</div>
+                    </div>
+                    <button class="btn-upload-single btn-start-chat-att" data-index="${index}">&#9654; Start Chat</button>
+                </div>`;
+            div.querySelector(".btn-upload-single").onclick = async () => {
+                const btn = div.querySelector(".btn-upload-single");
                 btn.disabled = true;
                 showReadStatus("Signing in\u2026");
                 try {
                     const token = await getAuthToken();
-                    await onEnterChat(r.conversationId, r.documentId, token);
+                    await onEnterChat(rec.conversationId, rec.documentId, token);
                 } catch (err) {
-                    showReadStatus("Error: " + err.message);
-                    clearToken();
-                    btn.disabled = false;
+                    showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false;
                 }
             };
+
+        } else if (isSender) {
+            // Sender sees: Add to Shared Bundle  +  Upload & Share
+            div.innerHTML = `
+                <div class="att-individual-row att-dual-action">
+                    <div class="att-info">
+                        <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
+                        <div class="att-meta">${formatBytes(att.size)}</div>
+                    </div>
+                    <div class="att-dual-btns">
+                        <button class="btn-add-bundle-read" data-index="${index}">Add to Bundle</button>
+                        <button class="btn-upload-share-read" data-index="${index}">Upload &amp; Share</button>
+                    </div>
+                </div>`;
+            div.querySelector(".btn-add-bundle-read").onclick  = () => onAddToShared(index);
+            div.querySelector(".btn-upload-share-read").onclick = () => onSingleUpload(index);
+
         } else {
-            btn.onclick = hasContext ? () => onAddToExisting(i) : () => onSingleUpload(i);
+            // Receiver sees: Add to My Bundle (if own context)  OR  Upload & Chat
+            const btnLabel = hasContext ? "Add to Bundle" : "Upload &amp; Chat";
+            div.innerHTML = `
+                <div class="att-individual-row">
+                    <div class="att-info">
+                        <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
+                        <div class="att-meta">${formatBytes(att.size)}</div>
+                    </div>
+                    <button class="btn-upload-single" data-index="${index}">${btnLabel}</button>
+                </div>`;
+            div.querySelector(".btn-upload-single").onclick = hasContext
+                ? () => onAddToExisting(index)
+                : () => onSingleUpload(index);
         }
+
+        container.appendChild(div);
     });
 }
+
 
 // ── Read-mode: add-to-bundle (all are supporting, no radio) ───────────────
 
