@@ -3,7 +3,7 @@ name: Build & Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main        # trigger on every push to main
+      - outlook-refactored        # trigger on every push to main
   workflow_dispatch: # allow manual trigger from GitHub UI
 
 permissions:
