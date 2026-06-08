@@ -1334,15 +1334,19 @@ async function handleReadAddToBundle() {
     const existingDocId  = latestRecord?.documentId;
     if (!existingConvId) { showReadStatus("No existing conversation found."); return; }
 
-    document.getElementById("btn-upload-bundle").disabled = true;
-    showReadStatus("Signing in\u2026");
+    // btn-upload-bundle may have been replaced by the dual-footer div —
+    // fall back to btn-bundle-own which is the equivalent action button there
+    const bundleBtn = document.getElementById("btn-upload-bundle")
+                   || document.getElementById("btn-bundle-own");
+    if (bundleBtn) bundleBtn.disabled = true;
+
+    showReadStatus("Signing in…");
     try {
         const token = await getAuthToken();
-        showReadStatus("Adding " + secondaryAtts.length + " doc(s) to conversation\u2026");
+        showReadStatus("Adding " + secondaryAtts.length + " doc(s) to conversation…");
         for (const att of secondaryAtts) {
             await uploadSupportingById(att, existingConvId, token);
         }
-        // Persist each added attachment so it shows as "✓ Added" on re-open
         if (_customProps) {
             await Promise.all(secondaryAtts.map(att =>
                 saveConversationRecord(_customProps, singleFingerprint(att), {
@@ -1354,10 +1358,10 @@ async function handleReadAddToBundle() {
                 }).catch(err => console.warn("customProps save failed:", err.message))
             ));
         }
-        hideReadFooterAfterUpload("\u2713 Added to bundle");
+        hideReadFooterAfterUpload("✓ Added to bundle");
     } catch (err) {
         console.error("Add to bundle error:", err); showReadStatus("Error: " + err.message); clearToken();
-        document.getElementById("btn-upload-bundle").disabled = false;
+        if (bundleBtn) bundleBtn.disabled = false;
     }
 }
 
