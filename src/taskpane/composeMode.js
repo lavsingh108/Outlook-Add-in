@@ -334,7 +334,7 @@ async function handleComposeBundleUpload() {
                 conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
-        saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() });
+        saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(), ownerEmail: _senderEmail.toLowerCase() });
 
         document.getElementById("compose-bundle-footer").classList.add("hidden");
         showComposeStatus("");
@@ -420,7 +420,7 @@ async function handleComposeSingleUpload(index) {
                 conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now(),
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
-        saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() });
+        saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now(), ownerEmail: _senderEmail.toLowerCase() });
 
         setComposeConversationCtx({ conversationId, documentId });
         _composeUploadedAttIds.add(att.id);

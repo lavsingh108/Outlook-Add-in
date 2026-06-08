@@ -188,13 +188,20 @@ export function loadReadAttachments() {
     const hasContext    = cpRecords.length > 0 || threadRecords.length > 0;
 
     // Role detection — must happen before bundle/individual split.
-    // The user is the "sender" (share owner) if the shared URL's conversationId
-    // matches a record they stored themselves (they originally uploaded it).
-    const sharedConvId = _readShareInfo?.conversationId;
-    const isSender = !!(sharedConvId && (
-        cpRecords.some(r => r.conversationId === sharedConvId) ||
-        threadRecords.some(r => r.conversationId === sharedConvId)
-    ));
+    // Primary: check ownerEmail stored in thread records (most reliable).
+    // Fallback: check if any stored record's conversationId matches the shared URL.
+    const sharedConvId  = _readShareInfo?.conversationId;
+    const currentEmail  = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
+    const allRecords    = [...cpRecords, ...threadRecords];
+    const isSender = !!(
+        // Primary: owns a record whose conversationId matches the shared URL
+        (sharedConvId && allRecords.some(r =>
+            r.conversationId === sharedConvId
+        )) ||
+        // Secondary: any record in this thread has ownerEmail = currentUser
+        // (handles case where shared convId differs from stored record)
+        allRecords.some(r => r.ownerEmail && r.ownerEmail === currentEmail)
+    );
 
     if (isReadBulkMode()) {
         const bundleBtn = document.getElementById("btn-upload-bundle");
@@ -328,7 +335,8 @@ async function handleReadBundleUpload() {
             for (const att of secondaryAtts) await uploadSupportingById(att, conversationId, token);
         }
 
-        const record = { conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now() };
+        const ownerEmail = Office.context.mailbox.userProfile?.emailAddress?.toLowerCase() || "";
+        const record = { conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(), ownerEmail };
         if (_customProps) {
             saveConversationRecord(_customProps, bundleFingerprint(primaryAtt, secondaryAtts), record)
                 .catch(err => console.warn("customProps save failed:", err.message));
@@ -358,7 +366,8 @@ async function handleReadSingleUpload(index) {
         showReadStatus("Uploading " + att.name + "\u2026");
         const { conversationId, documentId } = await uploadPrimary(att, token);
 
-        const record = { conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now() };
+        const ownerEmail = Office.context.mailbox.userProfile?.emailAddress?.toLowerCase() || "";
+        const record = { conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now(), ownerEmail };
         if (_customProps) {
             saveConversationRecord(_customProps, singleFingerprint(att), record)
                 .catch(err => console.warn("customProps save failed:", err.message));
