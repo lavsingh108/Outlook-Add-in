@@ -1113,8 +1113,10 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
     }
     if (!attsToUpload.length) { showReadStatus("No attachments selected."); return; }
 
-    // Disable buttons during upload
-    const disableSelectors = ".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own, #btn-add-to-shared";
+    // Hide the button immediately — re-show only on error
+    const sharedBtnEl = document.getElementById("btn-add-to-shared");
+    if (sharedBtnEl) sharedBtnEl.classList.add("hidden");
+    const disableSelectors = ".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own";
     document.querySelectorAll(disableSelectors).forEach(b => b.disabled = true);
     showReadStatus("Signing in\u2026");
     try {
@@ -1123,18 +1125,14 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
         for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
         }
-        // Hide only the shared button; re-enable everything else
-        document.getElementById("btn-add-to-shared")?.classList.add("hidden");
-        document.querySelectorAll(disableSelectors).forEach(b => {
-            if (b.id !== "btn-add-to-shared") b.disabled = false;
-        });
-        document.getElementById("btn-upload-bundle")?.removeAttribute("disabled");
+        document.querySelectorAll(disableSelectors).forEach(b => b.disabled = false);
         showReadStatus("\u2713 Added to shared document");
         setTimeout(() => showReadStatus(""), 3000);
     } catch (err) {
         console.error("Add to shared bundle error:", err);
         showReadStatus("Error: " + err.message); clearToken();
         document.querySelectorAll(disableSelectors).forEach(b => b.disabled = false);
+        if (sharedBtnEl) sharedBtnEl.classList.remove("hidden");
     }
 }
 
