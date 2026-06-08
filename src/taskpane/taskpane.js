@@ -930,11 +930,26 @@ function initRead() {
                 .then(cp => {
                     _customProps = cp;
 
-                    // Always render Previous Chats and attachments first —
-                    // this ensures ALL thread emails show the shared context
-                    // (via the synthetic share-link record in renderPreviousChats).
-                    renderPreviousChats();
-                    loadReadAttachments();
+                    // Resolve ownerEmail from API before rendering so
+                    // _isOriginalShareEmail is accurate on first render.
+                    const doRender = () => { renderPreviousChats(); loadReadAttachments(); };
+                    const updateOwner = (ownerEmail) => {
+                        if (!ownerEmail) return;
+                        if (_readShareInfo) _readShareInfo.ownerEmail = ownerEmail;
+                        const fromEmail = (Office.context.mailbox.item.from?.emailAddress || "").toLowerCase();
+                        _isOriginalShareEmail = ownerEmail.toLowerCase() === fromEmail;
+                    };
+                    if (shareInfo?.shareId && !shareInfo.ownerEmail) {
+                        getAuthToken()
+                            .then(t => resolveShareId(shareInfo.shareId, t))
+                            .then(r => { shareInfo.conversationId = r.conversationId; shareInfo.docId = r.docId; updateOwner(r.ownerEmail); })
+                            .catch(() => {})
+                            .finally(() => doRender());
+                    } else if (shareInfo?.ownerEmail) {
+                        updateOwner(shareInfo.ownerEmail); doRender();
+                    } else {
+                        doRender();
+                    }
                     const atts = Office.context.mailbox.item.attachments || [];
                     if (shareInfo && shareInfo.conversationId && atts.length > 0)
                         document.getElementById("read-or-divider").classList.remove("hidden");
