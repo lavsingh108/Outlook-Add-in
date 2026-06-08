@@ -213,23 +213,35 @@ function extractShareLinkFromBody() {
                 reject(new Error(result.error?.message || "Body read failed")); return;
             }
             const html = result.value || "";
-            const anchorRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-            let m;
-            while ((m = anchorRe.exec(html)) !== null) {
-                const linkText = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-                const parsed   = parseDocUrl(m[1]);
-                if (parsed.conversationId || parsed.shareId) {
-                    resolve({ ...parsed, linkText: linkText || m[1] }); return;
+
+            // Strip quoted/replied sections — links found only here are inherited,
+            // not original content of this email.
+            const nonQuoted = html
+                .replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
+                .replace(/<div[^>]*class="[^"]*gmail_quote[^"]*"[\s\S]*?<\/div>/gi, "")
+                .replace(/<div[^>]*id="[^"]*appendonsend[^"]*"[\s\S]*?<\/div>/gi, "");
+
+            function searchIn(src, isOriginal) {
+                const anchorRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+                let m;
+                while ((m = anchorRe.exec(src)) !== null) {
+                    const linkText = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+                    const parsed   = parseDocUrl(m[1]);
+                    if (parsed.conversationId || parsed.shareId)
+                        return { ...parsed, linkText: linkText || m[1], isInOriginalContent: isOriginal };
                 }
-            }
-            const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
-            while ((m = urlRe.exec(html)) !== null) {
-                const parsed = parseDocUrl(m[0]);
-                if (parsed.conversationId || parsed.shareId) {
-                    resolve({ ...parsed, linkText: null }); return;
+                const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
+                while ((m = urlRe.exec(src)) !== null) {
+                    const parsed = parseDocUrl(m[0]);
+                    if (parsed.conversationId || parsed.shareId)
+                        return { ...parsed, linkText: null, isInOriginalContent: isOriginal };
                 }
+                return null;
             }
-            resolve({ conversationId: null, docId: null, shareId: null, linkText: null });
+
+            // Non-quoted content first → isInOriginalContent: true
+            const found = searchIn(nonQuoted, true) || searchIn(html, false);
+            resolve(found || { conversationId: null, docId: null, shareId: null, linkText: null, isInOriginalContent: false });
         });
     });
 }
@@ -894,17 +906,9 @@ function initRead() {
             if (shareInfo && (shareInfo.conversationId || shareInfo.shareId)) {
                 _readShareInfo = shareInfo;  // persist for attachment rendering
                 renderShareSection(shareInfo);
-                // Detect if this IS the primary email that contains the shared document.
-                // Signal: an attachment name matches the share link text
-                // (the add-in inserts "filename — View on SmartBlue" as the link text).
-                // Also fallback to from===currentUser for cases where linkText is missing.
-                const attsNow   = Office.context.mailbox.item.attachments || [];
-                const linkText  = (shareInfo.linkText || "").toLowerCase();
-                const fromEmail = (Office.context.mailbox.item.from?.emailAddress || "").toLowerCase();
-                const myEmail   = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
-                const attMatchesLink = linkText &&
-                    attsNow.some(a => linkText.includes(a.name.toLowerCase()));
-                _isOriginalShareEmail = attMatchesLink || (fromEmail && fromEmail === myEmail);
+                // Primary email = share link is in the non-quoted body.
+                // Replies only have the link inside <blockquote> / quoted divs.
+                _isOriginalShareEmail = shareInfo.isInOriginalContent === true;
             }
 
             loadCustomProps()
