@@ -972,9 +972,10 @@ function loadReadAttachments() {
     const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
     const hasContext = cpRecords.length > 0 || threadRecords.length > 0;
 
-    // Show "Add to Shared Bundle" whenever the thread has a resolved share URL
+    // Show "Add to Shared Bundle" whenever the thread has any share URL
+    // (share-id URLs have no conversationId yet — resolved lazily on demand)
     const sharedConvId  = _readShareInfo?.conversationId || null;
-    const hasSharedLink = !!sharedConvId;
+    const hasSharedLink = !!(sharedConvId || _readShareInfo?.shareId);
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -1049,6 +1050,20 @@ function showBundleFooterDual(btn, label1, onclick1, label2, onclick2) {
 
 // Sender only: upload attachment as supporting doc into the shared URL's conversation
 async function handleReadAddToSharedBundle(sharedConvId, index) {
+    // If conversationId is not yet resolved (share-id URL), resolve it now
+    if (!sharedConvId && _readShareInfo?.shareId) {
+        showReadStatus("Resolving share link\u2026");
+        try {
+            const token = await getAuthToken();
+            const resolved = await resolveShareId(_readShareInfo.shareId, token);
+            _readShareInfo.conversationId = resolved.conversationId;
+            _readShareInfo.docId          = resolved.docId;
+            _readShareInfo.ownerEmail     = resolved.ownerEmail || "";
+            sharedConvId = resolved.conversationId;
+        } catch (err) {
+            showReadStatus("Error resolving share link: " + err.message); clearToken(); return;
+        }
+    }
     if (!sharedConvId) { showReadStatus("No shared conversation found."); return; }
     const allRecs  = [
         ...Object.values(getConversationMap(_customProps || {})),
