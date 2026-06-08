@@ -311,8 +311,27 @@ function getAttachmentBlob(attachmentId, filename) {
         });
     });
 }
+// Returns a fresh attachment list via getAttachmentsAsync to avoid stale IDs
+function getFreshAttachments() {
+    return new Promise((resolve, reject) => {
+        Office.context.mailbox.item.getAttachmentsAsync(result => {
+            if (result.status === Office.AsyncResultStatus.Succeeded) resolve(result.value);
+            else reject(new Error(result.error?.message || "getAttachmentsAsync failed"));
+        });
+    });
+}
+// Given a stale attachment object, returns the same attachment with a fresh ID
+async function refreshAtt(staleAtt) {
+    try {
+        const fresh = await getFreshAttachments();
+        // Match by name (most reliable cross-session identifier)
+        return fresh.find(a => a.name === staleAtt.name) || staleAtt;
+    } catch { return staleAtt; }
+}
+
 async function uploadPrimary(att, token) {
-    const blob = await getAttachmentBlob(att.id, att.name);
+    const freshAtt = await refreshAtt(att);
+    const blob = await getAttachmentBlob(freshAtt.id, freshAtt.name);
     const form = new FormData();
     form.append("document", blob, att.name);
     const resp = await fetch(UPLOAD_URL, { method:"POST", headers:{Authorization:"Bearer "+token}, body:form });
@@ -326,7 +345,8 @@ async function uploadPrimary(att, token) {
     return { conversationId, documentId };
 }
 async function uploadSupportingById(att, conversationId, token) {
-    const blob = await getAttachmentBlob(att.id, att.name);
+    const freshAtt = await refreshAtt(att);
+    const blob = await getAttachmentBlob(freshAtt.id, freshAtt.name);
     const form = new FormData();
     form.append("document", blob, att.name);
     const resp = await fetch(`${BUNDLE_ADD_URL}?conversation_id=${encodeURIComponent(conversationId)}`,
