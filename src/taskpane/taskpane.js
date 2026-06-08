@@ -603,7 +603,7 @@ function updateBundleSelection(container) {
 document.addEventListener("change", (e) => {
     if (e.target.name === "secondaryIndex") e.target.dataset.userUnchecked = e.target.checked ? "" : "1";
 });
-function renderIndividualReadList(attachments, container, hasContext = false, isSender = false, sharedConvId = null) {
+function renderIndividualReadList(attachments, container, hasContext = false, hasSharedLink = false, sharedConvId = null) {
     container.innerHTML = "";
     attachments.forEach((att, index) => {
         const div = document.createElement("div");
@@ -626,7 +626,7 @@ function renderIndividualReadList(attachments, container, hasContext = false, is
                 try { const token = await getAuthToken(); await enterChat(rec.conversationId, rec.documentId, token); }
                 catch (err) { showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false; }
             };
-        } else if (isSender && sharedConvId) {
+        } else if (hasSharedLink && sharedConvId) {
             // Sender: dual buttons — Add to My Bundle + Add to Shared Bundle
             div.innerHTML = `
                 <div class="att-individual-row att-dual-action">
@@ -972,18 +972,9 @@ function loadReadAttachments() {
     const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
     const hasContext = cpRecords.length > 0 || threadRecords.length > 0;
 
-    // Sender detection: the user who originally shared the document in this thread.
-    // Priority: (1) API ownerEmail stored in _readShareInfo when share-id was resolved,
-    //           (2) ownerEmail in a stored thread/cp record matches current user,
-    //           (3) stored record conversationId matches the shared URL (legacy).
-    const currentEmail = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
-    const sharedConvId = _readShareInfo?.conversationId;
-    const allRecords   = [...cpRecords, ...threadRecords];
-    const isSender = !!(
-        (_readShareInfo?.ownerEmail && _readShareInfo.ownerEmail === currentEmail) ||
-        allRecords.some(r => r.ownerEmail && r.ownerEmail === currentEmail) ||
-        (sharedConvId && allRecords.some(r => r.conversationId === sharedConvId))
-    );
+    // Show "Add to Shared Bundle" whenever the thread has a resolved share URL
+    const sharedConvId  = _readShareInfo?.conversationId || null;
+    const hasSharedLink = !!sharedConvId;
 
     if (isReadBulkMode()) {
         footerDiv.classList.remove("hidden");
@@ -994,11 +985,11 @@ function loadReadAttachments() {
             const allAdded = attachments.every(a => isAttachmentUploaded(a));
             if (allAdded) {
                 showBundleFooterSingle(bundleBtn, "\u2713 All Added", null, true);
-            } else if (isSender && sharedConvId) {
-                // Sender sees two buttons: own context + shared URL bundle
+            } else if (hasSharedLink) {
+                // Thread has a shared URL — show both buttons
                 showBundleFooterDual(
                     bundleBtn,
-                    "Add to My Bundle",     handleReadAddToBundle,
+                    "\uFF0B Add to Bundle",  handleReadAddToBundle,
                     "Add to Shared Bundle", () => handleReadAddToSharedBundle(sharedConvId)
                 );
             } else {
@@ -1025,7 +1016,7 @@ function loadReadAttachments() {
         }
     } else {
         footerDiv.classList.add("hidden");
-        renderIndividualReadList(attachments, listDiv, hasContext, isSender, sharedConvId);
+        renderIndividualReadList(attachments, listDiv, hasContext, hasSharedLink, sharedConvId);
     }
 }
 // ── Bundle footer helpers ─────────────────────────────────────────────────
