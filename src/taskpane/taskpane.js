@@ -213,35 +213,50 @@ function extractShareLinkFromBody() {
                 reject(new Error(result.error?.message || "Body read failed")); return;
             }
             const html = result.value || "";
+            const lower = html.toLowerCase();
 
-            // Strip quoted/replied sections — links found only here are inherited,
-            // not original content of this email.
-            const nonQuoted = html
-                .replace(/<blockquote[\s\S]*?<\/blockquote>/gi, "")
-                .replace(/<div[^>]*class="[^"]*gmail_quote[^"]*"[\s\S]*?<\/div>/gi, "")
-                .replace(/<div[^>]*id="[^"]*appendonsend[^"]*"[\s\S]*?<\/div>/gi, "");
+            // Find where the first reply/quote marker appears in the raw HTML.
+            // Any share link found BEFORE this position is original content.
+            // Any share link found AFTER is inherited from a quoted email.
+            const replyMarkers = [
+                "<blockquote",
+                "divrplyfwdmsg",          // Outlook Web (with or without x_ prefix)
+                "x_divrplyfwdmsg",
+                'id="stopspe',            // <hr id="stopSpelling"> Outlook divider
+                'id="x_stopspe',
+                "gmail_quote",
+                "yahoo_quoted",
+                "protonmail_quote",
+                ">----original message----",
+                ">-----original message-----",
+            ];
+            const firstQuotePos = replyMarkers.reduce((min, marker) => {
+                const idx = lower.indexOf(marker);
+                return (idx !== -1 && idx < min) ? idx : min;
+            }, Infinity);
 
-            function searchIn(src, isOriginal) {
-                const anchorRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-                let m;
-                while ((m = anchorRe.exec(src)) !== null) {
+            // Search for share link in full HTML, note position
+            const anchorRe = /<a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+            let m;
+            while ((m = anchorRe.exec(html)) !== null) {
+                const parsed = parseDocUrl(m[1]);
+                if (parsed.conversationId || parsed.shareId) {
                     const linkText = m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-                    const parsed   = parseDocUrl(m[1]);
-                    if (parsed.conversationId || parsed.shareId)
-                        return { ...parsed, linkText: linkText || m[1], isInOriginalContent: isOriginal };
+                    const isInOriginalContent = m.index < firstQuotePos;
+                    resolve({ ...parsed, linkText: linkText || m[1], isInOriginalContent });
+                    return;
                 }
-                const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
-                while ((m = urlRe.exec(src)) !== null) {
-                    const parsed = parseDocUrl(m[0]);
-                    if (parsed.conversationId || parsed.shareId)
-                        return { ...parsed, linkText: null, isInOriginalContent: isOriginal };
-                }
-                return null;
             }
-
-            // Non-quoted content first → isInOriginalContent: true
-            const found = searchIn(nonQuoted, true) || searchIn(html, false);
-            resolve(found || { conversationId: null, docId: null, shareId: null, linkText: null, isInOriginalContent: false });
+            const urlRe = /https?:\/\/[^\s"'<>)]+/gi;
+            while ((m = urlRe.exec(html)) !== null) {
+                const parsed = parseDocUrl(m[0]);
+                if (parsed.conversationId || parsed.shareId) {
+                    const isInOriginalContent = m.index < firstQuotePos;
+                    resolve({ ...parsed, linkText: null, isInOriginalContent });
+                    return;
+                }
+            }
+            resolve({ conversationId: null, docId: null, shareId: null, linkText: null, isInOriginalContent: false });
         });
     });
 }
