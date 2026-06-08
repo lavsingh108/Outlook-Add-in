@@ -1,3 +1,43 @@
+/* ── Bundle footer dual-button (sender view) ────────────────────── */
+.bundle-footer-dual {
+    display: flex;
+    gap: 8px;
+}
+.btn-bundle-action {
+    flex: 1;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    border: none;
+}
+.btn-bundle-action:disabled { opacity: .6; cursor: default; }
+.btn-bundle-secondary { background: #E3F2FD; color: #1A73E8; border: 1px solid #BBDEFB !important; }
+.btn-bundle-secondary:hover { background: #BBDEFB; }
+.btn-bundle-primary   { background: #1A73E8; color: #fff; }
+.btn-bundle-primary:hover   { background: #1558b0; }
+
+/* ── Dual-action individual attachment row ───────────────────────── */
+.att-dual-action { align-items: flex-start; }
+.att-dual-btns { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; }
+.btn-add-bundle-read {
+    background: #E8F0FE; color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    font-size: 11px; padding: 4px 8px; border-radius: 5px;
+    cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.btn-add-bundle-read:hover { background: #BBDEFB; }
+.btn-upload-share-read {
+    background: #1A73E8; color: #fff;
+    border: 1px solid #1A73E8;
+    font-size: 11px; padding: 4px 8px; border-radius: 5px;
+    cursor: pointer; font-weight: 600; white-space: nowrap;
+}
+.btn-upload-share-read:hover { background: #1558b0; }
+.btn-add-bundle-read:disabled, .btn-upload-share-read:disabled { opacity:.6; cursor:default; }
+
 /* ── Reset & base ──────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
