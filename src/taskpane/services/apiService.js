@@ -45,9 +45,10 @@ export async function resolveShareId(shareId, token) {
     const data = await resp.json();
     const conversationId = data.conversation_id || data.conversationId || null;
     const docId          = data.doc_id          || data.docId          || null;
+    const ownerEmail     = (data.owner || "").toLowerCase();
     if (!conversationId) throw new Error("No conversation_id returned from share resolve.");
     if (!docId)          throw new Error("No doc_id returned from share resolve.");
-    return { conversationId, docId };
+    return { conversationId, docId, ownerEmail };
 }
 
 /**

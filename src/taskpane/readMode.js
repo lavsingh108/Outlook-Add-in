@@ -188,19 +188,17 @@ export function loadReadAttachments() {
     const hasContext    = cpRecords.length > 0 || threadRecords.length > 0;
 
     // Role detection — must happen before bundle/individual split.
-    // Primary: check ownerEmail stored in thread records (most reliable).
-    // Fallback: check if any stored record's conversationId matches the shared URL.
+    // Priority:
+    //  1. shareInfo.ownerEmail from API (works on first open, no stored records needed)
+    //  2. Stored thread record with ownerEmail matching current user
+    //  3. Stored conversationId matches shared URL (legacy fallback)
     const sharedConvId  = _readShareInfo?.conversationId;
     const currentEmail  = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
     const allRecords    = [...cpRecords, ...threadRecords];
     const isSender = !!(
-        // Primary: owns a record whose conversationId matches the shared URL
-        (sharedConvId && allRecords.some(r =>
-            r.conversationId === sharedConvId
-        )) ||
-        // Secondary: any record in this thread has ownerEmail = currentUser
-        // (handles case where shared convId differs from stored record)
-        allRecords.some(r => r.ownerEmail && r.ownerEmail === currentEmail)
+        (_readShareInfo?.ownerEmail && _readShareInfo.ownerEmail === currentEmail) ||
+        allRecords.some(r => r.ownerEmail && r.ownerEmail === currentEmail) ||
+        (sharedConvId && allRecords.some(r => r.conversationId === sharedConvId))
     );
 
     if (isReadBulkMode()) {
@@ -573,10 +571,11 @@ async function _autoOpenLatestConversation(shareInfo) {
             return await enterChat(latest.conversationId, latest.documentId, token);
         }
         if (shareInfo?.shareId) {
-            const { conversationId, docId } = await resolveShareId(shareInfo.shareId, token);
-            shareInfo.conversationId = conversationId;
-            shareInfo.docId          = docId;
-            return await enterChat(conversationId, docId, token);
+            const resolved = await resolveShareId(shareInfo.shareId, token);
+            shareInfo.conversationId = resolved.conversationId;
+            shareInfo.docId          = resolved.docId;
+            shareInfo.ownerEmail     = resolved.ownerEmail || "";
+            return await enterChat(resolved.conversationId, resolved.docId, token);
         }
         if (shareInfo?.conversationId) {
             return await enterChat(shareInfo.conversationId, shareInfo.docId, token);
