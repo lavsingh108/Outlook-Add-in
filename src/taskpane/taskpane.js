@@ -894,11 +894,17 @@ function initRead() {
             if (shareInfo && (shareInfo.conversationId || shareInfo.shareId)) {
                 _readShareInfo = shareInfo;  // persist for attachment rendering
                 renderShareSection(shareInfo);
-                // Detect if this IS the primary email the current user sent.
-                // If so, suppress "Add to..." buttons — user is viewing their own share email.
+                // Detect if this IS the primary email that contains the shared document.
+                // Signal: an attachment name matches the share link text
+                // (the add-in inserts "filename — View on SmartBlue" as the link text).
+                // Also fallback to from===currentUser for cases where linkText is missing.
+                const attsNow   = Office.context.mailbox.item.attachments || [];
+                const linkText  = (shareInfo.linkText || "").toLowerCase();
                 const fromEmail = (Office.context.mailbox.item.from?.emailAddress || "").toLowerCase();
                 const myEmail   = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
-                _isOriginalShareEmail = !!(fromEmail && myEmail && fromEmail === myEmail);
+                const attMatchesLink = linkText &&
+                    attsNow.some(a => linkText.includes(a.name.toLowerCase()));
+                _isOriginalShareEmail = attMatchesLink || (fromEmail && fromEmail === myEmail);
             }
 
             loadCustomProps()
