@@ -976,4 +976,1011 @@ html, body {
     cursor: pointer;
     transition: background .15s;
 }
+.btn-add-bundle:hover { background: #BBDEFB; }/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    color: #222;
+    background: #f4f6f9;
+}
+
+/* ── Root shell ─────────────────────────────────────────────────── */
+#app-body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ── Header ─────────────────────────────────────────────────────── */
+.header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #0D47A1;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    z-index: 10;
+}
+
+.btn-back {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.15);
+    border: none; border-radius: 6px;
+    color: #fff; width: 30px; height: 30px;
+    cursor: pointer; flex-shrink: 0;
+    transition: background .15s;
+}
+.btn-back:hover { background: rgba(255,255,255,.28); }
+
+.header-text { line-height: 1.25; }
+.header-title { font-size: 13px; font-weight: 700; }
+.header-sub   { font-size: 11px; color: #90CAF9; }
+
+/* ── Generic view ───────────────────────────────────────────────── */
+.view {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.hidden { display: none !important; }
+
+/* ── Attachment view ─────────────────────────────────────────────── */
+#view-attachments { overflow: hidden; }
+
+/* ── Mode toggle bar ─────────────────────────────────────────────── */
+.mode-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px 8px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.mode-label {
+    font-size: 12px; font-weight: 500; color: #aaa;
+    transition: color .2s; user-select: none;
+}
+.mode-label.active { color: #0D47A1; font-weight: 700; }
+
+.toggle-switch { position: relative; display: inline-flex; cursor: pointer; }
+.toggle-switch input { display: none; }
+
+.toggle-track {
+    display: block; width: 36px; height: 20px;
+    background: #ccc; border-radius: 10px; position: relative;
+    transition: background .2s;
+}
+.toggle-switch input:checked ~ .toggle-track { background: #0D47A1; }
+
+.toggle-thumb {
+    position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: #fff; border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.toggle-switch input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); }
+
+/* ── Attachment list ─────────────────────────────────────────────── */
+.attachment-list {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 14px;
+    overflow-y: auto;
+}
+
+/* ── Attachment item ─────────────────────────────────────────────── */
+.att-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: border-color .15s;
+}
+.att-item:hover { border-color: #90CAF9; }
+
+/* Bundle mode row */
+.att-bundle-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.att-radio-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* "Primary" radio label */
+.att-radio-col .radio-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.att-item.is-primary {
+    border-color: #1A73E8;
+    background: #f0f6ff;
+}
+.att-item.is-primary .radio-label { color: #1A73E8; }
+
+/* File info */
+.att-info { flex: 1; min-width: 0; }
+.att-name {
+    font-size: 13px; font-weight: 500; color: #222;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.att-meta { font-size: 11px; color: #888; margin-top: 2px; }
+
+/* Secondary checkbox column */
+.att-secondary-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.att-secondary-col .sec-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+/* Hide secondary checkbox on the primary row */
+.att-item.is-primary .att-secondary-col { visibility: hidden; }
+
+/* Custom checkbox */
+.att-secondary-col input[type="checkbox"] {
+    width: 16px; height: 16px;
+    accent-color: #0D47A1;
+    cursor: pointer;
+}
+
+/* Individual mode row */
+.att-individual-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.btn-upload-single {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    background: #0D47A1;
+    color: #fff;
+    border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-upload-single:hover    { background: #1565C0; }
+.btn-upload-single:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Footer ──────────────────────────────────────────────────────── */
+.footer {
+    flex-shrink: 0;
+    padding: 10px 14px;
+    border-top: 1px solid #eee;
+    background: #fff;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn-primary {
+    width: 100%; padding: 11px;
+    background: #0D47A1; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background .2s;
+}
+.btn-primary:hover    { background: #1565C0; }
+.btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Status ──────────────────────────────────────────────────────── */
+.status-msg {
+    flex-shrink: 0;
+    font-size: 12px; color: #555;
+    padding: 6px 14px 0;
+    min-height: 22px; text-align: center;
+}
+
+/* ── Chat view ───────────────────────────────────────────────────── */
+.chat-history {
+    flex: 1 1 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    scroll-behavior: smooth;
+}
+.chat-history::-webkit-scrollbar { width: 4px; }
+.chat-history::-webkit-scrollbar-track { background: transparent; }
+.chat-history::-webkit-scrollbar-thumb { background: #c5cae9; border-radius: 2px; }
+
+/* ── Chat bubbles ────────────────────────────────────────────────── */
+.msg-user {
+    align-self: flex-end;
+    background: #1A73E8; color: #fff;
+    padding: 9px 13px;
+    border-radius: 16px 16px 4px 16px;
+    max-width: 85%; font-size: 13px; line-height: 1.55;
+    word-break: break-word;
+}
+.msg-user p { margin: 0; }
+
+.msg-ai {
+    align-self: flex-start;
+    background: #fff; color: #222;
+    padding: 9px 13px;
+    border-radius: 16px 16px 16px 4px;
+    max-width: 90%; font-size: 13px; line-height: 1.55;
+    border: 1px solid #e8e8e8;
+    word-break: break-word;
+}
+.msg-ai p         { margin: 0 0 6px; }
+.msg-ai p:last-child { margin-bottom: 0; }
+.msg-ai strong    { color: #0D47A1; }
+
+.msg-ai .ai-list {
+    margin: 4px 0 6px 4px;
+    padding-left: 16px;
+    display: flex; flex-direction: column; gap: 5px;
+}
+.msg-ai .ai-list li       { line-height: 1.5; list-style: disc; }
+.msg-ai .ai-list li::marker { color: #1A73E8; }
+
+.page-ref {
+    display: inline-flex; align-items: center;
+    background: #E8F0FE; color: #1A73E8;
+    font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: 10px;
+    border: 1px solid #C5D8FB;
+    white-space: nowrap; vertical-align: middle;
+}
+
+/* ── Suggestion chips ────────────────────────────────────────────── */
+.suggestions {
+    flex-shrink: 0;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid #eee;
+    background: #fafbff;
+}
+.chip {
+    display: inline-flex; align-items: center;
+    background: #E8F0FE; color: #1A73E8;
+    border: 1px solid #C5D8FB; border-radius: 8px;
+    padding: 4px 11px; font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: background .15s;
+    text-align: left; line-height: 1.4;
+}
+.chip:hover { background: #d2e3fc; border-color: #a8c7fa; }
+
+/* ── Chat input ──────────────────────────────────────────────────── */
+.chat-input-area {
+    flex-shrink: 0;
+    display: flex; align-items: flex-end; gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-top: 1px solid #e0e0e0;
+    box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+}
+#user-input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid #ddd; border-radius: 10px;
+    font-size: 13px; font-family: inherit; line-height: 1.5;
+    resize: none; outline: none;
+    max-height: 80px; overflow-y: auto;
+    transition: border-color .15s;
+}
+#user-input:focus { border-color: #1A73E8; }
+
+.btn-send {
+    flex-shrink: 0; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    background: #0D47A1; color: #fff;
+    border: none; border-radius: 8px;
+    cursor: pointer; transition: background .15s, transform .1s;
+}
+.btn-send:hover    { background: #1565C0; }
+.btn-send:active   { transform: scale(.93); }
+.btn-send:disabled { background: #aaa; cursor: not-allowed; }
+
+/* ── Typing indicator ────────────────────────────────────────────── */
+.msg-typing {
+    align-self: flex-start;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 16px 16px 16px 4px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: fit-content;
+}
+
+.typing-dot {
+    width: 7px;
+    height: 7px;
+    background: #90CAF9;
+    border-radius: 50%;
+    animation: typing-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0);    background: #90CAF9; }
+    30%            { transform: translateY(-5px); background: #1A73E8; }
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   COMPOSE MODE
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Refresh button (in header) ──────────────────────────────────── */
+.btn-refresh {
+    margin-left: auto;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.15);
+    border: none; border-radius: 6px;
+    color: #fff; width: 28px; height: 28px;
+    cursor: pointer; transition: background .15s;
+}
+.btn-refresh:hover { background: rgba(255,255,255,.28); }
+.btn-refresh.spinning svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Compose view shell ──────────────────────────────────────────── */
+#view-compose {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;       /* outer shell never scrolls */
+    background: #f4f6f9;
+}
+
+/* Scrollable area — recipients + documents */
+#compose-body {
+    flex: 1 1 0;
+    overflow-y: auto;
+    padding: 12px 14px 0;
+    gap: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Sticky bottom — checkbox + Upload button + status + result card */
+#compose-sticky-bottom {
+    flex-shrink: 0;
+    padding: 8px 14px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f4f6f9;
+    border-top: 1px solid #e3e8f0;
+}
+
+.compose-section       { display: flex; flex-direction: column; gap: 8px; }
+.compose-section-grow  { flex: 1 1 auto; min-height: 0; }
+
+.compose-section-header { display: flex; align-items: center; gap: 6px; }
+
+.compose-section-title {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; color: #555;
+}
+
+.compose-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 5px;
+    background: #0D47A1; color: #fff; border-radius: 9px;
+    font-size: 10px; font-weight: 700; line-height: 1;
+}
+.compose-badge:empty { display: none; }
+
+/* ── Loading / empty states ──────────────────────────────────────── */
+.compose-loading { font-size: 12px; color: #aaa; padding: 6px 0; }
+
+.compose-empty {
+    font-size: 12px; color: #999;
+    background: #fff; border: 1px dashed #dde2ea; border-radius: 10px;
+    padding: 14px 12px; line-height: 1.5; text-align: center;
+}
+
+/* ── Recipients area ─────────────────────────────────────────────── */
+.compose-recipients-area {
+    display: flex; flex-direction: column; gap: 6px;
+    background: #fff; border: 1px solid #dde2ea; border-radius: 10px;
+    padding: 10px 12px; min-height: 48px;
+}
+
+.recipient-row { display: flex; align-items: flex-start; gap: 8px; }
+
+.recipient-row-label {
+    font-size: 11px; font-weight: 700; color: #888;
+    padding-top: 3px; flex-shrink: 0; width: 22px;
+}
+
+.recipient-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.recipient-chip {
+    display: inline-block;
+    background: #e8eef8; color: #0D47A1; border-radius: 20px;
+    padding: 3px 9px; font-size: 12px; font-weight: 500;
+    max-width: 200px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; cursor: default;
+}
+
+/* ── Attachment radio cards ──────────────────────────────────────── */
+.compose-att-list { display: flex; flex-direction: column; gap: 6px; }
+
+.compose-att-item {
+    background: #fff; border: 1.5px solid #dde2ea;
+    border-radius: 10px; overflow: hidden;
+    transition: border-color .15s; cursor: pointer;
+}
+.compose-att-item:hover    { border-color: #90A4AE; }
+.compose-att-item.selected { border-color: #0D47A1; background: #f0f4ff; }
+
+.compose-att-item input[type="radio"] { display: none; }
+
+.compose-att-label {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; cursor: pointer; width: 100%;
+}
+
+.compose-att-icon {
+    width: 24px; height: 24px; flex-shrink: 0;
+    stroke: #90A4AE; transition: stroke .15s;
+}
+.compose-att-item.selected .compose-att-icon { stroke: #0D47A1; }
+
+.compose-att-meta { flex: 1 1 0; min-width: 0; }
+
+.compose-att-name {
+    font-size: 13px; font-weight: 600; color: #222;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.compose-att-size { font-size: 11px; color: #999; margin-top: 1px; }
+
+/* Checkmark on selected card */
+.compose-att-item.selected .compose-att-label::after {
+    content: "✓"; flex-shrink: 0;
+    color: #0D47A1; font-size: 14px; font-weight: 700; margin-left: auto;
+}
+
+/* ── Compose footer ──────────────────────────────────────────────── */
+.compose-footer { padding: 0; }
+
+/* ── Result card ─────────────────────────────────────────────────── */
+.result-actions-row {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-result-action {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+}
+.btn-result-action:hover { background: #BBDEFB; }
+
+.btn-curate-action {
+    background: #1A73E8;
+    color: #fff;
+    border-color: #1A73E8;
+}
+.btn-curate-action:hover { background: #1558b0; }
+
+.result-card {
+    background: #fff; border: 1px solid #dde2ea; border-radius: 12px;
+    padding: 14px; display: flex; flex-direction: column; gap: 10px;
+    animation: fadeInUp .25s ease;
+}
+.result-card.hidden { display: none !important; }
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.result-top {
+    display: flex; align-items: center; gap: 7px;
+    background: #e8f5e9; border-radius: 8px; padding: 8px 10px;
+}
+.result-check { width: 16px; height: 16px; flex-shrink: 0; stroke: #2e7d32; }
+.result-inserted-text { font-size: 12px; font-weight: 600; color: #2e7d32; }
+
+.result-label {
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px; color: #0D47A1;
+}
+
+.result-link-row {
+    display: flex; align-items: center; gap: 8px;
+    background: #f0f4ff; border: 1px solid #c5d5f7;
+    border-radius: 8px; padding: 8px 10px;
+}
+.result-link {
+    flex: 1 1 0; min-width: 0;
+    font-size: 12px; color: #1A237E;
+    word-break: break-all; line-height: 1.4;
+}
+
+.btn-copy {
+    flex-shrink: 0; background: none;
+    border: 1px solid #c5d5f7; border-radius: 6px;
+    padding: 4px 6px; cursor: pointer; color: #5C7CFA;
+    display: flex; align-items: center; transition: background .15s, border-color .15s;
+}
+.btn-copy svg  { width: 14px; height: 14px; }
+.btn-copy:hover  { background: #e3ecff; border-color: #0D47A1; color: #0D47A1; }
+.btn-copy.copied { background: #e8f5e9; border-color: #43a047; color: #2e7d32; }
+/* ── Read-init view (loading / error state) ─────────────────────────── */
+#view-read-init {
+    justify-content: center;
+    align-items: center;
+}
+
+.read-init-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px 24px;
+    text-align: center;
+    flex: 1;
+}
+
+.read-spinner-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.read-spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e0e7f3;
+    border-top-color: #0D47A1;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.read-init-status {
+    font-size: 13px;
+    color: #555;
+    font-weight: 500;
+}
+
+.read-init-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.read-init-error p {
+    font-size: 13px;
+    color: #666;
+    max-width: 220px;
+    line-height: 1.5;
+}
+
+/* ── Read content view ──────────────────────────────────────────── */
+#view-read { overflow-y: auto; }
+
+.read-section {
+    padding: 10px 14px;
+}
+
+.read-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: #9e9e9e;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+}
+
+/* Share link card */
+.read-share-card {
+    background: #fff;
+    border: 1px solid #e3e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.read-share-inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.read-share-file-icon {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    color: #0D47A1;
+}
+
+.read-share-info { min-width: 0; }
+
+.read-share-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.read-share-url {
+    font-size: 10px;
+    color: #aaa;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.btn-start-chat {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #0D47A1;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 11px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    white-space: nowrap;
+}
+.btn-start-chat:hover    { background: #1565C0; }
+.btn-start-chat:disabled { background: #90A4AE; cursor: not-allowed; }
+
+/* Or divider */
+.read-or-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 14px;
+    color: #bbb;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.read-or-divider::before,
+.read-or-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #ebebeb;
+}
+
+/* Attachment section header with inline mode toggle */
+.read-attach-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+/* Inline mode-bar (used in both read and compose headers) */
+.mode-bar-mini {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.att-empty {
+    color: #888;
+    font-size: 13px;
+    padding: 8px 0;
+    margin: 0;
+}
+
+/* Individual upload "Share" button variant */
+.btn-upload-share {
+    background: #0D47A1 !important;
+    color: #fff !important;
+}
+.btn-upload-share:hover    { background: #1565C0 !important; }
+.btn-upload-share:disabled { background: #90A4AE !important; }
+
+/* ── Previous chats list ────────────────────────────────────────── */
+.prev-chat-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.prev-chat-item {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transition: border-color .15s;
+}
+.prev-chat-item:hover { border-color: #90CAF9; }
+
+.prev-chat-info { flex: 1; min-width: 0; }
+
+.prev-chat-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #222;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.prev-chat-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+.btn-resume {
+    flex-shrink: 0;
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+.btn-resume:hover { background: #BBDEFB; }
+
+/* ── Compose attachment option row ─────────────────────────────── */
+.compose-option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 2px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+}
+.compose-option-row input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #0D47A1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+/* ── Attachment-level Start Chat button ────────────────────────── */
+.btn-start-chat-att {
+    background: #1A73E8 !important;
+    color: #fff !important;
+    border-color: #1A73E8 !important;
+    font-weight: 600;
+}
+.btn-start-chat-att:hover:not([disabled]) { background: #1558b0 !important; }
+
+/* ── New recipients inline share button ─────────────────────────── */
+.btn-share-new-recip {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 5px;
+    border: 1px solid #1A73E8;
+    background: #fff;
+    color: #1A73E8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s;
+}
+.btn-share-new-recip:hover  { background: #E8F0FE; }
+.btn-share-new-recip:disabled { opacity: .6; cursor: default; }
+
+/* ── Access level row ───────────────────────────────────────────── */
+.compose-access-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid #e3e8f0;
+    margin-bottom: 4px;
+}
+.compose-access-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5f6b7a;
+    min-width: 44px;
+}
+.compose-access-select {
+    flex: 1;
+    height: 30px;
+    border: 1px solid #d0d7e2;
+    border-radius: 6px;
+    padding: 0 8px;
+    font-size: 13px;
+    color: #1a2332;
+    background: #fff;
+    cursor: pointer;
+    outline: none;
+}
+.compose-access-select:focus { border-color: #1A73E8; }
+/* ── Compose result Start Chat button ──────────────────────────── */
+.btn-start-chat-compose {
+    width: 100%;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.btn-start-chat-compose.hidden { display: none !important; }
+
+/* ── Bundle footer dual-button (sender view) ────────────────────── */
+.bundle-footer-dual {
+    display: flex;
+    gap: 8px;
+    padding: 0;
+}
+.btn-bundle-action {
+    flex: 1;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    border: none;
+}
+.btn-bundle-action:disabled { opacity: .6; cursor: default; }
+.btn-bundle-secondary {
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB !important;
+}
+.btn-bundle-secondary:hover { background: #BBDEFB; }
+.btn-bundle-primary {
+    background: #1A73E8;
+    color: #fff;
+}
+.btn-bundle-primary:hover { background: #1558b0; }
+
+/* ── Dual-action attachment row (Add to Bundle + Upload & Share) ─── */
+.att-dual-action { align-items: flex-start; }
+.att-dual-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.btn-add-bundle-read {
+    background: #E8F0FE;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.btn-add-bundle-read:hover { background: #BBDEFB; }
+.btn-upload-share-read {
+    background: #1A73E8;
+    color: #fff;
+    border: 1px solid #1A73E8;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.btn-upload-share-read:hover { background: #1558b0; }
+.btn-add-bundle-read:disabled,
+.btn-upload-share-read:disabled { opacity: .6; cursor: default; }
+
+/* ── All-added disabled footer button ──────────────────────────── */
+#btn-upload-bundle:disabled {
+    background: #e0e0e0 !important;
+    color: #9e9e9e !important;
+    border-color: #e0e0e0 !important;
+    cursor: default;
+    opacity: 1;
+}
+
+/* ── Shared-done button state ───────────────────────────────────── */
+.btn-shared-done {
+    background: #e8f5e9 !important;
+    color: #2e7d32 !important;
+    border-color: #a5d6a7 !important;
+    cursor: default;
+    opacity: 1 !important;
+}
+
+/* ── Curate button (result card) ─────────────────────────────────────── */
+.btn-curate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1A73E8;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+.btn-curate:hover { background: #1558b0; }
+.btn-curate svg { flex-shrink: 0; }
+
+/* ── Add to Bundle button in compose individual list ─────────────────── */
+.btn-add-bundle {
+    background: #E3F2FD;
+    color: #1A73E8;
+    border: 1px solid #BBDEFB;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
 .btn-add-bundle:hover { background: #BBDEFB; }

@@ -187,26 +187,44 @@ export function loadReadAttachments() {
     const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
     const hasContext    = cpRecords.length > 0 || threadRecords.length > 0;
 
+    // Role detection — must happen before bundle/individual split.
+    // The user is the "sender" (share owner) if the shared URL's conversationId
+    // matches a record they stored themselves (they originally uploaded it).
+    const sharedConvId = _readShareInfo?.conversationId;
+    const isSender = !!(sharedConvId && (
+        cpRecords.some(r => r.conversationId === sharedConvId) ||
+        threadRecords.some(r => r.conversationId === sharedConvId)
+    ));
+
     if (isReadBulkMode()) {
-        footerDiv.classList.remove("hidden");
         const bundleBtn = document.getElementById("btn-upload-bundle");
-        bundleBtn.disabled = false;
 
         if (hasContext) {
             renderAddToBundleList(attachments, listDiv);
             const allAdded = attachments.every(a => isAttachmentUploaded(a, _customProps));
+
             if (allAdded) {
-                bundleBtn.textContent = "\u2713 All Added";
-                bundleBtn.disabled    = true;
-                bundleBtn.classList.remove("btn-start-chat-att");
-                bundleBtn.onclick     = null;
+                // All already added — single disabled button
+                footerDiv.classList.remove("hidden");
+                renderBundleFooterSingle(bundleBtn, "\u2713 All Added", null, true);
+
+            } else if (isSender) {
+                // Sender sees TWO footer buttons: own context + shared bundle
+                footerDiv.classList.remove("hidden");
+                renderBundleFooterDual(
+                    bundleBtn,
+                    "Add to My Bundle",   handleReadAddToBundle,
+                    "Add to Shared Bundle", () => handleReadAddToSharedBundle(null, sharedConvId)
+                );
+
             } else {
-                bundleBtn.textContent = "\uFF0B Add to Bundle";
-                bundleBtn.disabled    = false;
-                bundleBtn.classList.remove("btn-start-chat-att");
-                bundleBtn.onclick     = handleReadAddToBundle;
+                // Receiver: single Add to Bundle (their own context)
+                footerDiv.classList.remove("hidden");
+                renderBundleFooterSingle(bundleBtn, "\uFF0B Add to Bundle", handleReadAddToBundle, false);
             }
+
         } else {
+            footerDiv.classList.remove("hidden");
             renderBundleList(attachments, listDiv, enterChat, handleReadBundleUpload);
             const primaryRec = getAttachmentRecord(attachments[0], _customProps);
             if (primaryRec) {
@@ -232,23 +250,49 @@ export function loadReadAttachments() {
         }
     } else {
         footerDiv.classList.add("hidden");
-
-        // Determine role: the user is the "sender" (original sharer) if
-        // the thread's shared URL conversation matches one of their stored records.
-        const sharedConvId = _readShareInfo?.conversationId;
-        const isSender = !!(sharedConvId && (
-            cpRecords.some(r => r.conversationId === sharedConvId) ||
-            threadRecords.some(r => r.conversationId === sharedConvId)
-        ));
-
         renderIndividualReadList(
             attachments, listDiv, hasContext, isSender,
             enterChat,
-            handleReadSingleUpload,           // receiver: Upload & Chat / sender: Upload & Share
-            handleReadAddToExisting,           // receiver: add to their own context
-            (i) => handleReadAddToSharedBundle(i, sharedConvId)  // sender: add to shared URL bundle
+            handleReadSingleUpload,
+            handleReadAddToExisting,
+            (i) => handleReadAddToSharedBundle(i, sharedConvId)
         );
     }
+}
+
+// ── Bundle footer helpers ──────────────────────────────────────────────────
+
+function renderBundleFooterSingle(btn, label, onclick, disabled) {
+    // Remove any dual-button wrapper left from a previous render
+    const existing = document.getElementById("bundle-footer-dual");
+    if (existing) existing.replaceWith(btn);
+    btn.textContent = label;
+    btn.disabled    = !!disabled;
+    btn.classList.remove("btn-start-chat-att");
+    btn.onclick     = onclick || null;
+}
+
+function renderBundleFooterDual(btn, label1, onclick1, label2, onclick2) {
+    // If dual wrapper already rendered, just update handlers
+    let dual = document.getElementById("bundle-footer-dual");
+    if (!dual) {
+        dual = document.createElement("div");
+        dual.id        = "bundle-footer-dual";
+        dual.className = "bundle-footer-dual";
+        btn.parentNode.replaceChild(dual, btn);
+        const b1 = document.createElement("button");
+        b1.id        = "btn-bundle-own";
+        b1.className = "btn-bundle-action btn-bundle-secondary";
+        dual.appendChild(b1);
+        const b2 = document.createElement("button");
+        b2.id        = "btn-bundle-shared";
+        b2.className = "btn-bundle-action btn-bundle-primary";
+        dual.appendChild(b2);
+    }
+    const b1 = dual.querySelector("#btn-bundle-own");
+    const b2 = dual.querySelector("#btn-bundle-shared");
+    b1.textContent = label1; b1.onclick = onclick1; b1.disabled = false;
+    b2.textContent = label2; b2.onclick = onclick2; b2.disabled = false;
 }
 
 // ── Upload handlers ────────────────────────────────────────────────────────
