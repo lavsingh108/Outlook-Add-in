@@ -958,19 +958,6 @@ function loadReadAttachments() {
     const attachSection = document.getElementById("read-attach-section");
     const divider       = document.getElementById("read-or-divider");
 
-    // "Add to Shared Document" button — visible whenever thread has a share URL
-    const sharedBtn = document.getElementById("btn-add-to-shared");
-    if (sharedBtn) {
-        if (_readShareInfo?.conversationId || _readShareInfo?.shareId) {
-            sharedBtn.classList.remove("hidden");
-            sharedBtn.onclick = () => handleReadAddToSharedBundle(
-                _readShareInfo?.conversationId || null, null
-            );
-        } else {
-            sharedBtn.classList.add("hidden");
-        }
-    }
-
     if (!attachments.length) {
         // No attachments — hide the entire section and the divider above it
         if (attachSection) attachSection.classList.add("hidden");
@@ -1032,6 +1019,19 @@ function loadReadAttachments() {
     } else {
         footerDiv.classList.add("hidden");
         renderIndividualReadList(attachments, listDiv, hasContext, hasSharedLink, sharedConvId);
+    }
+
+    // "Add to Shared Document" — shown in both modes whenever a share URL exists
+    const sharedBtn = document.getElementById("btn-add-to-shared");
+    if (sharedBtn) {
+        if (_readShareInfo?.conversationId || _readShareInfo?.shareId) {
+            sharedBtn.classList.remove("hidden");
+            sharedBtn.onclick = () => handleReadAddToSharedBundle(
+                _readShareInfo?.conversationId || null, null
+            );
+        } else {
+            sharedBtn.classList.add("hidden");
+        }
     }
 }
 // ── Bundle footer helpers ─────────────────────────────────────────────────
@@ -1119,9 +1119,8 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
         for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
         }
-        // Hide the button — no chat context created, no navigation
-        const sharedBtn = document.getElementById("btn-add-to-shared");
-        if (sharedBtn) sharedBtn.classList.add("hidden");
+        // Hide only the shared button — Upload & Analyse stays available
+        document.getElementById("btn-add-to-shared")?.classList.add("hidden");
         showReadStatus("\u2713 Added to shared document");
         setTimeout(() => showReadStatus(""), 3000);
     } catch (err) {
@@ -1132,10 +1131,11 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
 }
 
 function hideReadFooterAfterUpload(msg) {
+    // Only hide the upload button — "Add to Shared Document" stays available
     document.getElementById("btn-upload-bundle")?.classList.add("hidden");
-    document.getElementById("btn-add-to-shared")?.classList.add("hidden");
     const dual = document.getElementById("bundle-footer-dual");
     if (dual) dual.classList.add("hidden");
+    document.querySelectorAll(".btn-upload-single").forEach(b => b.classList.add("hidden"));
     showReadStatus(msg || "\u2713 Document added");
     setTimeout(() => showReadStatus(""), 3000);
 }
