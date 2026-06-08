@@ -36,7 +36,8 @@ let _customProps          = null;
 let _composeAttachments        = [];
 let _composeRecipients         = [];
 let _senderEmail               = "";
-let _readShareInfo             = null;  // share link found in email body; set in initRead
+let _readShareInfo             = null;
+let _isOriginalShareEmail      = false;  // true when viewing the email that contains the share link the user sent  // share link found in email body; set in initRead
 let _composeConversationCtx    = null;       // { conversationId, documentId } after first compose upload
 let _composeUploadedAttIds     = new Set();  // att.id values uploaded this compose session
 let _composeSharedRecipients   = new Set();  // recipient emails already shared with
@@ -893,6 +894,11 @@ function initRead() {
             if (shareInfo && (shareInfo.conversationId || shareInfo.shareId)) {
                 _readShareInfo = shareInfo;  // persist for attachment rendering
                 renderShareSection(shareInfo);
+                // Detect if this IS the primary email the current user sent.
+                // If so, suppress "Add to..." buttons — user is viewing their own share email.
+                const fromEmail = (Office.context.mailbox.item.from?.emailAddress || "").toLowerCase();
+                const myEmail   = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
+                _isOriginalShareEmail = !!(fromEmail && myEmail && fromEmail === myEmail);
             }
 
             loadCustomProps()
@@ -1002,6 +1008,14 @@ function loadReadAttachments() {
         // No attachments — hide the entire section and the divider above it
         if (attachSection) attachSection.classList.add("hidden");
         if (divider)       divider.classList.add("hidden");
+        return;
+    }
+
+    // Primary share email — user is viewing the email they sent with the share link.
+    // No point adding attachments to a bundle from the original send.
+    if (_isOriginalShareEmail) {
+        if (attachSection) attachSection.classList.add("hidden");
+        document.getElementById("btn-add-to-shared")?.classList.add("hidden");
         return;
     }
     // Has attachments — make sure section is visible
@@ -1363,6 +1377,7 @@ function switchToReadView() {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     state.currentConversationId = null; state.currentDocumentId = null;
+    _isOriginalShareEmail = false;
     // _readShareInfo intentionally kept — email body hasn't changed,
     // share link must stay available for hasContext and Add to Bundle after Back
     const shareBtn = document.getElementById("btn-share-chat");
