@@ -1400,7 +1400,7 @@ function switchToReadView() {
     document.getElementById("chat-history").innerHTML = "";
     hideSuggestions();
     state.currentConversationId = null; state.currentDocumentId = null;
-    _isOriginalShareEmail = false;
+    // _isOriginalShareEmail intentionally kept — same email, same body analysis
     // _readShareInfo intentionally kept — email body hasn't changed,
     // share link must stay available for hasContext and Add to Bundle after Back
     const shareBtn = document.getElementById("btn-share-chat");
