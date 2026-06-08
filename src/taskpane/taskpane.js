@@ -1021,12 +1021,10 @@ function loadReadAttachments() {
         return;
     }
 
-    // Primary share email — user is viewing the email they sent with the share link.
-    // No point adding attachments to a bundle from the original send.
+    // Primary share email — document already shared via URL.
+    // Hide "Add to Shared Document" but keep "Upload & Analyse" for own context.
     if (_isOriginalShareEmail) {
-        if (attachSection) attachSection.classList.add("hidden");
         document.getElementById("btn-add-to-shared")?.classList.add("hidden");
-        return;
     }
     // Has attachments — make sure section is visible
     if (attachSection) attachSection.classList.remove("hidden");
@@ -1096,7 +1094,7 @@ function loadReadAttachments() {
         const hasUrl         = !!(sharedConvId || _readShareInfo?.shareId);
         const allSharedAdded = attachments.length > 0 &&
             attachments.every(a => !!getSharedAddedRecord(a));
-        if (hasUrl && isOwner && !allSharedAdded) {
+        if (hasUrl && isOwner && !allSharedAdded && !_isOriginalShareEmail) {
             sharedBtn.classList.remove("hidden");
             sharedBtn.onclick = () => handleReadAddToSharedBundle(
                 _readShareInfo?.conversationId || null, null
