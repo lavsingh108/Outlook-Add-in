@@ -1,3 +1,21 @@
+/* ── Add to Shared Document button ──────────────────────────────── */
+.btn-add-to-shared {
+    width: 100%;
+    height: 40px;
+    margin-top: 8px;
+    border-radius: 8px;
+    border: 2px solid #1A73E8;
+    background: #fff;
+    color: #1A73E8;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+.btn-add-to-shared:hover { background: #E8F0FE; }
+.btn-add-to-shared:disabled { opacity: .6; cursor: default; }
+.btn-add-to-shared.hidden { display: none !important; }
+
 /* ── Bundle footer dual-button (sender view) ────────────────────── */
 .bundle-footer-dual {
     display: flex;

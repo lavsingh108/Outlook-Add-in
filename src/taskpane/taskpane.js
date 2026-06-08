@@ -957,6 +957,20 @@ function loadReadAttachments() {
     const footerDiv     = document.getElementById("bundle-footer");
     const attachSection = document.getElementById("read-attach-section");
     const divider       = document.getElementById("read-or-divider");
+
+    // "Add to Shared Document" button — visible whenever thread has a share URL
+    const sharedBtn = document.getElementById("btn-add-to-shared");
+    if (sharedBtn) {
+        if (_readShareInfo?.conversationId || _readShareInfo?.shareId) {
+            sharedBtn.classList.remove("hidden");
+            sharedBtn.onclick = () => handleReadAddToSharedBundle(
+                _readShareInfo?.conversationId || null, null
+            );
+        } else {
+            sharedBtn.classList.add("hidden");
+        }
+    }
+
     if (!attachments.length) {
         // No attachments — hide the entire section and the divider above it
         if (attachSection) attachSection.classList.add("hidden");
