@@ -1084,7 +1084,7 @@ function loadReadAttachments() {
                 showBundleFooterDual(
                     bundleBtn,
                     "\uFF0B Add to Bundle",  handleReadAddToBundle,
-                    "Add to Shared Bundle", () => handleReadAddToSharedBundle(sharedConvId)
+                    // "Add to Shared Bundle", () => handleReadAddToSharedBundle(sharedConvId)
                 );
             } else {
                 showBundleFooterSingle(bundleBtn, "\uFF0B Add to Bundle", handleReadAddToBundle, false);
