@@ -103,7 +103,12 @@ function saveConversationRecord(cp, fingerprint, record) {
         });
     });
 }
-function singleFingerprint(att) { return `att_${att.id}`; }
+function singleFingerprint(att)      { return `att_${att.id}`; }
+function sharedAddedFingerprint(att) { return `shared_att_${att.id}`; }
+function getSharedAddedRecord(att) {
+    if (!_customProps) return null;
+    return getConversationMap(_customProps)[sharedAddedFingerprint(att)] || null;
+}
 
 // Returns the stored conversation record for this attachment, or null if not uploaded.
 function getAttachmentRecord(att) {
@@ -1041,7 +1046,9 @@ function loadReadAttachments() {
     if (sharedBtn) {
         const currentEmail   = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
         const ownerEmail     = (_readShareInfo?.ownerEmail || "").toLowerCase();
-        const isOwner        = ownerEmail ? ownerEmail === currentEmail : false;
+        // isOwner: true when API confirms ownership, also true when owner unknown
+        // (only hide when we positively know it belongs to someone else)
+        const isOwner        = ownerEmail ? ownerEmail === currentEmail : true;
         const hasUrl         = !!(sharedConvId || _readShareInfo?.shareId);
         const allSharedAdded = attachments.length > 0 &&
             attachments.every(a => !!getSharedAddedRecord(a));
@@ -1141,8 +1148,19 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
         showReadStatus("Adding " + attsToUpload.length + " doc(s) to shared document\u2026");
         for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
+            // Await the save so Exchange persists before any refresh
+            if (_customProps) {
+                await saveConversationRecord(_customProps, sharedAddedFingerprint(att), {
+                    conversationId: sharedConvId,
+                    documentId:     sharedDocId,
+                    uploadType:     "shared-added",
+                    timestamp:      Date.now(),
+                }).catch(err => console.warn("shared-added save failed:", err.message));
+            }
         }
         document.querySelectorAll(disableSelectors).forEach(b => b.disabled = false);
+        // Re-render so labels update immediately
+        loadReadAttachments();
         showReadStatus("\u2713 Added to shared document");
         setTimeout(() => showReadStatus(""), 3000);
     } catch (err) {
