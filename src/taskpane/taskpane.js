@@ -610,8 +610,19 @@ function renderIndividualReadList(attachments, container, hasContext = false, ha
         div.className = "att-item";
         const rec = getAttachmentRecord(att);
 
-        if (rec) {
-            // Already uploaded — Start Chat
+        const sharedRec = getSharedAddedRecord(att);
+        if (sharedRec) {
+            // Already added to shared document — show persistent label
+            div.innerHTML = `
+                <div class="att-individual-row">
+                    <div class="att-info">
+                        <div class="att-name" title="${escHtml(att.name)}">${escHtml(att.name)}</div>
+                        <div class="att-meta">${formatBytes(att.size)}</div>
+                    </div>
+                    <span class="att-shared-done">\u2713 Added to Shared</span>
+                </div>`;
+        } else if (rec) {
+            // Already uploaded as own context — Start Chat
             div.innerHTML = `
                 <div class="att-individual-row">
                     <div class="att-info">
@@ -1025,10 +1036,16 @@ function loadReadAttachments() {
         renderIndividualReadList(attachments, listDiv, hasContext, hasSharedLink, sharedConvId);
     }
 
-    // "Add to Shared Document" — shown in both modes whenever a share URL exists
+    // "Add to Shared Document" — sender only, hidden once all atts are added
     const sharedBtn = document.getElementById("btn-add-to-shared");
     if (sharedBtn) {
-        if (_readShareInfo?.conversationId || _readShareInfo?.shareId) {
+        const currentEmail   = (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase();
+        const ownerEmail     = (_readShareInfo?.ownerEmail || "").toLowerCase();
+        const isOwner        = ownerEmail ? ownerEmail === currentEmail : false;
+        const hasUrl         = !!(sharedConvId || _readShareInfo?.shareId);
+        const allSharedAdded = attachments.length > 0 &&
+            attachments.every(a => !!getSharedAddedRecord(a));
+        if (hasUrl && isOwner && !allSharedAdded) {
             sharedBtn.classList.remove("hidden");
             sharedBtn.onclick = () => handleReadAddToSharedBundle(
                 _readShareInfo?.conversationId || null, null

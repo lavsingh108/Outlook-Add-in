@@ -1,3 +1,12 @@
+/* ── Shared-added label ──────────────────────────────────────────── */
+.att-shared-done {
+    font-size: 11px;
+    font-weight: 600;
+    color: #2e7d32;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
 /* ── Add to Shared Document button ──────────────────────────────── */
 .btn-add-to-shared {
     width: 100%;
