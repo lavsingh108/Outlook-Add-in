@@ -891,8 +891,8 @@ function initRead() {
                     // Auto-open: only resume a stored primary record (not share-link only).
                     // Share link has its own Start Chat button — no silent auto-open.
                     const cpPrimary = Object.values(getConversationMap(cp))
-                        .filter(r => r.uploadType !== "shared-link");
-                    const thPrimary = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+                        .filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
+                    const thPrimary = getThreadContextAll().filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
                     const primaryRecs = [...cpPrimary,
                         ...thPrimary.filter(r => !cpPrimary.some(c => c.conversationId === r.conversationId))]
                         .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
@@ -943,10 +943,10 @@ function renderPreviousChats() {
     // Merge custom props records with thread-scoped sessionStorage records.
     const storedMap = {};
     Object.values(getConversationMap(_customProps))
-        .filter(r => r.uploadType !== "shared-link")
+        .filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added")
         .forEach(r => { storedMap[r.conversationId] = r; });
     getThreadContextAll()
-        .filter(r => r.uploadType !== "shared-link")
+        .filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added")
         .forEach(r => { if (!storedMap[r.conversationId]) storedMap[r.conversationId] = r; });
     const records = Object.values(storedMap);
     if (!records.length) { section.classList.add("hidden"); return; }
@@ -988,9 +988,9 @@ function loadReadAttachments() {
     if (attachSection) attachSection.classList.remove("hidden");
     // hasContext: custom props OR thread sessionStorage. Share link is NEVER a bundle target.
     const cpRecords = _customProps
-        ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "shared-link")
+        ? Object.values(getConversationMap(_customProps)).filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added")
         : [];
-    const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+    const threadRecords = getThreadContextAll().filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
     const hasContext = cpRecords.length > 0 || threadRecords.length > 0;
 
     // Show "Add to Shared Bundle" whenever the thread has any share URL
@@ -1253,8 +1253,8 @@ async function handleReadAddToBundle() {
     if (!secondaryAtts.length) { showReadStatus("Select at least one document to add."); return; }
 
     const cpRecs = Object.values(getConversationMap(_customProps || {}))
-        .filter(r => r.uploadType !== "shared-link");
-    const thRecs = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+        .filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
+    const thRecs = getThreadContextAll().filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
     const allRecs = [...cpRecs, ...thRecs.filter(r => !cpRecs.some(c => c.conversationId === r.conversationId))];
     const latestRecord = allRecs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
     const existingConvId = latestRecord?.conversationId;
@@ -1297,8 +1297,8 @@ async function handleReadAddToExisting(index) {
     try {
         const token = await getAuthToken();
         const cpR = Object.values(getConversationMap(_customProps || {}))
-            .filter(r => r.uploadType !== "shared-link");
-        const thR = getThreadContextAll().filter(r => r.uploadType !== "shared-link");
+            .filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
+        const thR = getThreadContextAll().filter(r => r.uploadType !== "shared-link" && r.uploadType !== "shared-added");
         const allR = [...cpR, ...thR.filter(r => !cpR.some(c => c.conversationId === r.conversationId))];
         const latestRec = allR.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))[0];
         const existingConvId = latestRec?.conversationId;
