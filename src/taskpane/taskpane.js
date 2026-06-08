@@ -1118,20 +1118,26 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
         showReadStatus("Adding " + attsToUpload.length + " doc(s) to shared document\u2026");
         for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
-            if (_customProps) {
-                saveConversationRecord(_customProps, singleFingerprint(att), {
-                    conversationId: sharedConvId, documentId: sharedDocId,
-                    label: att.name, uploadType: "bundle", timestamp: Date.now(),
-                }).catch(err => console.warn("customProps save failed:", err.message));
-            }
         }
-        showReadStatus("");
-        await enterChat(sharedConvId, sharedDocId, token);
+        // Hide the button — no chat context created, no navigation
+        const sharedBtn = document.getElementById("btn-add-to-shared");
+        if (sharedBtn) sharedBtn.classList.add("hidden");
+        showReadStatus("\u2713 Added to shared document");
+        setTimeout(() => showReadStatus(""), 3000);
     } catch (err) {
         console.error("Add to shared bundle error:", err);
         showReadStatus("Error: " + err.message); clearToken();
         document.querySelectorAll(disableSelectors).forEach(b => b.disabled = false);
     }
+}
+
+function hideReadFooterAfterUpload(msg) {
+    document.getElementById("btn-upload-bundle")?.classList.add("hidden");
+    document.getElementById("btn-add-to-shared")?.classList.add("hidden");
+    const dual = document.getElementById("bundle-footer-dual");
+    if (dual) dual.classList.add("hidden");
+    showReadStatus(msg || "\u2713 Document added");
+    setTimeout(() => showReadStatus(""), 3000);
 }
 
 async function handleReadBundleUpload() {
@@ -1163,7 +1169,7 @@ async function handleReadBundleUpload() {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(), ownerEmail: (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase() });
-        await enterChat(conversationId, documentId, token);
+        hideReadFooterAfterUpload("\u2713 Document uploaded — open from Previous Chats");
     } catch (err) {
         console.error("Read bundle upload error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.getElementById("btn-upload-bundle").disabled = false;
@@ -1188,7 +1194,8 @@ async function handleReadSingleUpload(index) {
             }).catch(err => console.warn("customProps save failed:", err.message));
         }
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now(), ownerEmail: (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase() });
-        await enterChat(conversationId, documentId, token);
+        document.querySelectorAll(".btn-upload-single").forEach(b => b.classList.add("hidden"));
+        hideReadFooterAfterUpload("\u2713 Document uploaded — open from Previous Chats");
     } catch (err) {
         console.error("Read single upload error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
@@ -1231,8 +1238,7 @@ async function handleReadAddToBundle() {
                 }).catch(err => console.warn("customProps save failed:", err.message))
             ));
         }
-        showReadStatus("");
-        await enterChat(existingConvId, existingDocId, token);
+        hideReadFooterAfterUpload("\u2713 Added to bundle");
     } catch (err) {
         console.error("Add to bundle error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.getElementById("btn-upload-bundle").disabled = false;
