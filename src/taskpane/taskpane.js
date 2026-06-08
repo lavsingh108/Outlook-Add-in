@@ -1086,15 +1086,37 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
     const sharedRec   = allRecs.find(r => r.conversationId === sharedConvId);
     const sharedDocId = sharedRec?.documentId || _readShareInfo?.docId || null;
     const attachments = Office.context.mailbox.item.attachments;
-    const att = index != null ? attachments[index] : null;
-    // Disable all dual-action buttons during upload
-    document.querySelectorAll(".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own")
-        .forEach(b => b.disabled = true);
+
+    // Collect attachments to upload:
+    //  - Individual mode with specific index → just that one
+    //  - Bundle mode (footer button) → primary + all checked secondaries
+    let attsToUpload = [];
+    if (index != null) {
+        attsToUpload = [attachments[index]];
+    } else {
+        const primaryRadio = document.querySelector("input[name='primaryIndex']:checked");
+        if (primaryRadio) {
+            const primaryIdx = parseInt(primaryRadio.value);
+            attsToUpload.push(attachments[primaryIdx]);
+            Array.from(document.querySelectorAll("input[name='secondaryIndex']:checked"))
+                .map(c => parseInt(c.value))
+                .filter(i => i !== primaryIdx)
+                .forEach(i => attsToUpload.push(attachments[i]));
+        } else {
+            // Fallback: all attachments
+            attsToUpload = [...attachments];
+        }
+    }
+    if (!attsToUpload.length) { showReadStatus("No attachments selected."); return; }
+
+    // Disable buttons during upload
+    const disableSelectors = ".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own, #btn-add-to-shared, #btn-upload-bundle";
+    document.querySelectorAll(disableSelectors).forEach(b => b.disabled = true);
     showReadStatus("Signing in\u2026");
     try {
         const token = await getAuthToken();
-        if (att) {
-            showReadStatus("Adding " + att.name + " to shared bundle\u2026");
+        showReadStatus("Adding " + attsToUpload.length + " doc(s) to shared document\u2026");
+        for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
             if (_customProps) {
                 saveConversationRecord(_customProps, singleFingerprint(att), {
@@ -1102,20 +1124,13 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
                     label: att.name, uploadType: "bundle", timestamp: Date.now(),
                 }).catch(err => console.warn("customProps save failed:", err.message));
             }
-        } else {
-            // Bundle mode: upload all checked attachments
-            const secondaryAtts = Array.from(document.querySelectorAll("input[name='addToBundleIndex']:checked"))
-                .map(c => parseInt(c.value)).map(i => attachments[i]);
-            if (!secondaryAtts.length) { showReadStatus("Select at least one document."); return; }
-            showReadStatus("Adding " + secondaryAtts.length + " doc(s) to shared bundle\u2026");
-            for (const a of secondaryAtts) await uploadSupportingById(a, sharedConvId, token);
         }
         showReadStatus("");
         await enterChat(sharedConvId, sharedDocId, token);
     } catch (err) {
-        console.error("Add to shared bundle error:", err); showReadStatus("Error: " + err.message); clearToken();
-        document.querySelectorAll(".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own")
-            .forEach(b => b.disabled = false);
+        console.error("Add to shared bundle error:", err);
+        showReadStatus("Error: " + err.message); clearToken();
+        document.querySelectorAll(disableSelectors).forEach(b => b.disabled = false);
     }
 }
 
