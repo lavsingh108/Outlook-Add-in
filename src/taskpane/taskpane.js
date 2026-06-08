@@ -626,8 +626,10 @@ function renderIndividualReadList(attachments, container, hasContext = false, ha
                 try { const token = await getAuthToken(); await enterChat(rec.conversationId, rec.documentId, token); }
                 catch (err) { showReadStatus("Error: " + err.message); clearToken(); btn.disabled = false; }
             };
-        } else if (hasSharedLink && sharedConvId) {
-            // Sender: dual buttons — Add to My Bundle + Add to Shared Bundle
+        } else if (hasSharedLink) {
+            // Always show both: own upload option + add to shared
+            const ownLabel  = hasContext ? "Add to My Bundle" : "Upload &amp; Chat";
+            const ownClass  = hasContext ? "btn-add-bundle-read" : "btn-add-bundle-read btn-upload-chat";
             div.innerHTML = `
                 <div class="att-individual-row att-dual-action">
                     <div class="att-info">
@@ -635,11 +637,13 @@ function renderIndividualReadList(attachments, container, hasContext = false, ha
                         <div class="att-meta">${formatBytes(att.size)}</div>
                     </div>
                     <div class="att-dual-btns">
-                        ${hasContext ? `<button class="btn-add-bundle-read" data-index="${index}">Add to My Bundle</button>` : ""}
-                        <button class="btn-upload-share-read" data-index="${index}">Add to Shared Bundle</button>
+                        <button class="${ownClass}" data-index="${index}">${ownLabel}</button>
+                        <button class="btn-upload-share-read" data-index="${index}">Add to Shared</button>
                     </div>
                 </div>`;
-            if (hasContext) div.querySelector(".btn-add-bundle-read").onclick  = () => handleReadAddToExisting(index);
+            div.querySelector(".btn-add-bundle-read").onclick = hasContext
+                ? () => handleReadAddToExisting(index)
+                : () => handleReadSingleUpload(index);
             div.querySelector(".btn-upload-share-read").onclick = () => handleReadAddToSharedBundle(sharedConvId, index);
         } else {
             // Receiver: single button
@@ -1110,7 +1114,7 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
     if (!attsToUpload.length) { showReadStatus("No attachments selected."); return; }
 
     // Disable buttons during upload
-    const disableSelectors = ".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own, #btn-add-to-shared, #btn-upload-bundle";
+    const disableSelectors = ".btn-add-bundle-read, .btn-upload-share-read, #btn-bundle-shared, #btn-bundle-own, #btn-add-to-shared";
     document.querySelectorAll(disableSelectors).forEach(b => b.disabled = true);
     showReadStatus("Signing in\u2026");
     try {
@@ -1119,8 +1123,12 @@ async function handleReadAddToSharedBundle(sharedConvId, index) {
         for (const att of attsToUpload) {
             await uploadSupportingById(att, sharedConvId, token);
         }
-        // Hide only the shared button — Upload & Analyse stays available
+        // Hide only the shared button; re-enable everything else
         document.getElementById("btn-add-to-shared")?.classList.add("hidden");
+        document.querySelectorAll(disableSelectors).forEach(b => {
+            if (b.id !== "btn-add-to-shared") b.disabled = false;
+        });
+        document.getElementById("btn-upload-bundle")?.removeAttribute("disabled");
         showReadStatus("\u2713 Added to shared document");
         setTimeout(() => showReadStatus(""), 3000);
     } catch (err) {
@@ -1170,6 +1178,7 @@ async function handleReadBundleUpload() {
         }
         saveThreadContext({ conversationId, documentId, label: primaryAtt.name, uploadType: "bundle", timestamp: Date.now(), ownerEmail: (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase() });
         hideReadFooterAfterUpload("\u2713 Document uploaded — open from Previous Chats");
+        renderPreviousChats();
     } catch (err) {
         console.error("Read bundle upload error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.getElementById("btn-upload-bundle").disabled = false;
@@ -1196,6 +1205,7 @@ async function handleReadSingleUpload(index) {
         saveThreadContext({ conversationId, documentId, label: att.name, uploadType: "single", timestamp: Date.now(), ownerEmail: (Office.context.mailbox.userProfile?.emailAddress || "").toLowerCase() });
         document.querySelectorAll(".btn-upload-single").forEach(b => b.classList.add("hidden"));
         hideReadFooterAfterUpload("\u2713 Document uploaded — open from Previous Chats");
+        renderPreviousChats();
     } catch (err) {
         console.error("Read single upload error:", err); showReadStatus("Error: " + err.message); clearToken();
         document.querySelectorAll(".btn-upload-single").forEach(b => b.disabled = false);
