@@ -1154,7 +1154,8 @@ function showBundleFooterDual(btn, label1, onclick1, label2, onclick2) {
         b1.id = "btn-bundle-own"; b1.className = "btn-bundle-action btn-bundle-secondary";
         const b2 = document.createElement("button");
         b2.id = "btn-bundle-shared"; b2.className = "btn-bundle-action btn-bundle-primary";
-        dual.appendChild(b1); dual.appendChild(b2);
+        dual.appendChild(b1); 
+        // dual.appendChild(b2);
     }
     const b1 = dual.querySelector("#btn-bundle-own");
     const b2 = dual.querySelector("#btn-bundle-shared");
